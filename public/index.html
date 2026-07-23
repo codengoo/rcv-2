@@ -9,6 +9,13 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Shantell+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/style.css" />
+  <!-- PWA: mở full màn hình khi thêm vào MH chính (iPhone/iPad + Android) -->
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Rung chuông vàng" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <style>
     /* ===== Client tối ưu cho MOBILE ===== */
     html, body { height: 100%; }
@@ -20,8 +27,12 @@
     #joinCard #codeInput { font-size: 26px; text-align: center; padding: 16px; }
     #joinCard button { padding: 17px; font-size: 20px; }
 
-    /* --- Màn chơi: full màn hình --- */
-    body.playing { padding: 0; align-items: stretch; }
+    /* --- Màn chơi: full màn hình, KHOÁ cuộn/nảy trang --- */
+    body.playing {
+      padding: 0; align-items: stretch;
+      position: fixed; inset: 0; width: 100%; height: 100%;
+      overflow: hidden; overscroll-behavior: none;
+    }
     body.playing .wrap { max-width: 100%; }
     body.playing #gameCard {
       height: 100dvh;
@@ -31,6 +42,8 @@
       padding: max(14px, env(safe-area-inset-top)) 14px max(14px, env(safe-area-inset-bottom));
       gap: 10px;
       overflow-y: auto;
+      overscroll-behavior: contain;  /* cuộn trong card không lan ra làm nảy trang */
+      -webkit-overflow-scrolling: touch;
     }
     /* Đèn/nút bấm chiếm phần lớn màn hình */
     #gameCard .stage {
@@ -66,6 +79,17 @@
     }
     #resultBox .players li.gold {          /* hạng nhất: vàng như nút gold */
       color: #6b4a06; background: var(--gold); box-shadow: 0 4px 0 #d99a1f;
+    }
+
+    /* --- Animation khi công bố bảng tổng sắp --- */
+    @keyframes resultCardIn { from { opacity: 0; transform: scale(.92) translateY(12px); } to { opacity: 1; transform: none; } }
+    @keyframes rowIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+    @keyframes winPop { 0% { opacity: 0; transform: scale(.9) translateY(16px); } 60% { opacity: 1; transform: scale(1.05); } 100% { transform: scale(1); } }
+    #resultBox .result-card { animation: resultCardIn .32s cubic-bezier(.2,.7,.2,1) both; }
+    #resultBox .players li { animation: rowIn .4s cubic-bezier(.2,.7,.2,1) both; }
+    #resultBox .players li.gold { animation: winPop .55s cubic-bezier(.2,.7,.2,1) both; }
+    @media (prefers-reduced-motion: reduce) {
+      #resultBox .result-card, #resultBox .players li { animation: none; }
     }
 
     /* --- Stage: đồng bộ style nút (fill đặc phẳng + bóng đáy 3D, bỏ gradient/nét đứt) --- */
@@ -226,8 +250,8 @@
       if (iWon) head = '<div style="text-align:center;font-size:24px;">🏆 <b class="rank1">Bạn thắng!</b></div>';
       else if (winner) head = `<div style="text-align:center;font-size:18px;">🏆 Người thắng: <b>${escapeHtml(winner.name)}</b> (<span title="${winner.reaction} ms">${secs(winner.reaction)}</span>)</div>`;
       else head = '<div style="text-align:center;">Vòng này không ai hợp lệ 😅</div>';
-      let list = ranking.length ? '<ul class="players">' + ranking.map((r) =>
-        `<li class="${r.rank === 1 ? "gold" : ""}"><span>${r.rank === 1 ? "🥇" : r.rank === 2 ? "🥈" : r.rank === 3 ? "🥉" : r.rank + "."} ${escapeHtml(r.name)}</span><span title="${r.reaction} ms">${secs(r.reaction)}</span></li>`
+      let list = ranking.length ? '<ul class="players">' + ranking.map((r, i) =>
+        `<li class="${r.rank === 1 ? "gold" : ""}" style="animation-delay:${120 + i * 70}ms"><span>${r.rank === 1 ? "🥇" : r.rank === 2 ? "🥈" : r.rank === 3 ? "🥉" : r.rank + "."} ${escapeHtml(r.name)}</span><span title="${r.reaction} ms">${secs(r.reaction)}</span></li>`
       ).join("") + "</ul>" : "";
       $("resultBox").innerHTML = '<div class="card result-card" style="margin-top:12px;">' + head + list + "</div>";
       if (!hasActed) setStage("wait", "", "");

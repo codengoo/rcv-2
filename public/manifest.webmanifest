@@ -1,0 +1,17 @@
+{
+  "name": "Rung chuông vàng",
+  "short_name": "RCV",
+  "description": "Mini game bấm chuông nhanh — ai bấm nhanh nhất sau tín hiệu sẽ thắng.",
+  "lang": "vi",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fbf7ec",
+  "theme_color": "#fbf7ec",
+  "icons": [
+    { "src": "/icon-192.png", "type": "image/png", "sizes": "192x192", "purpose": "any" },
+    { "src": "/icon-512.png", "type": "image/png", "sizes": "512x512", "purpose": "any" },
+    { "src": "/icon-512.png", "type": "image/png", "sizes": "512x512", "purpose": "maskable" }
+  ]
+}
