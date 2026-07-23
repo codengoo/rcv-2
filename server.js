@@ -67,6 +67,15 @@ function assignAvatar(room) {
   return { emoji, color };
 }
 
+// Cho phép client gửi lại avatar cũ khi kết nối lại -> giữ nguyên nhận diện.
+// Sanitize để tránh chèn CSS/HTML độc hại qua màu/emoji.
+function sanitizeAvatar(av) {
+  if (!av || typeof av !== "object") return null;
+  const color = typeof av.color === "string" && /^#[0-9a-fA-F]{3,8}$/.test(av.color) ? av.color : null;
+  const emoji = typeof av.emoji === "string" && av.emoji.length > 0 && av.emoji.length <= 8 ? av.emoji : null;
+  return color && emoji ? { color, emoji } : null;
+}
+
 function genCode() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // bỏ ký tự dễ nhầm (I,O,0,1)
   let code;
@@ -205,17 +214,18 @@ io.on("connection", (socket) => {
   });
 
   // ---- CLIENT ----
-  socket.on("client:join", ({ code, name }, cb) => {
+  socket.on("client:join", ({ code, name, avatar }, cb) => {
     code = String(code || "").trim().toUpperCase();
     name = String(name || "").trim().slice(0, 20) || "Người chơi";
     const room = rooms.get(code);
     if (!room) return cb?.({ ok: false, error: "Phòng không tồn tại" });
 
-    const avatar = assignAvatar(room);
-    room.players.set(socket.id, { name, reaction: null, buzzed: false, disabled: false, avatar });
+    // Kết nối lại: giữ nguyên avatar cũ nếu client gửi kèm (đã sanitize); nếu không thì cấp mới.
+    const av = sanitizeAvatar(avatar) || assignAvatar(room);
+    room.players.set(socket.id, { name, reaction: null, buzzed: false, disabled: false, avatar: av });
     socket.join(code);
     socket.data = { role: "client", code };
-    cb?.({ ok: true, code, phase: room.phase, avatar });
+    cb?.({ ok: true, code, phase: room.phase, avatar: av });
     broadcastRoom(room);
   });
 

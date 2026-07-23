@@ -152,15 +152,17 @@
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
-    const socket = io();
+    const socket = io({ reconnection: true, reconnectionDelay: 500, reconnectionDelayMax: 3000, timeout: 8000 });
     const $ = (id) => document.getElementById(id);
 
     let phase = "LOBBY";
     let signalPerf = null;   // mốc thời gian LOCAL khi nhận tín hiệu
     let hasActed = false;    // đã bấm trong vòng này
     let myName = "";
+    let myCode = "";         // mã phòng đã vào (để join lại khi reconnect)
     let myAvatar = null;     // avatar con vật kiểu Kahoot
     let iDisabled = false;   // bị Master khóa quyền chơi
+    let joined = false;      // đã vào phòng thành công chưa
 
     const vibrate = (p) => { try { navigator.vibrate && navigator.vibrate(p); } catch {} };
 
@@ -184,7 +186,9 @@
       socket.emit("client:join", { code, name }, (res) => {
         if (!res?.ok) { $("joinMsg").textContent = res?.error || "Không vào được phòng."; return; }
         myName = name;
+        myCode = code;
         myAvatar = res.avatar || null;
+        joined = true;
         document.body.classList.add("playing");
         $("joinCard").classList.add("hidden");
         $("gameCard").classList.remove("hidden");
@@ -274,9 +278,40 @@
     });
 
     socket.on("room:closed", () => {
+      joined = false;
       setStage("foul", "", "Phòng đã đóng (Master rời đi).");
       $("stageText").innerHTML = '<div class="bell">🚪</div>';
     });
+
+    // ---- Chống rớt kết nối khi tắt/khóa màn hình ----
+    // Trang KHÔNG reload khi khóa màn hình -> tên/avatar/signalPerf còn nguyên,
+    // chỉ cần join lại phòng khi socket kết nối lại (kèm avatar cũ để giữ nhận diện).
+    socket.on("connect", () => {
+      if (!joined) return; // chưa vào phòng thì không tự join
+      socket.emit("client:join", { code: myCode, name: myName, avatar: myAvatar }, (res) => {
+        if (!res?.ok) { // phòng không còn nữa
+          joined = false;
+          setStage("foul", "", res?.error || "Phòng không còn nữa.");
+          $("stageText").innerHTML = '<div class="bell">🚪</div>';
+          return;
+        }
+        myAvatar = res.avatar || myAvatar;
+        phase = res.phase;
+        // Đang ra hiệu: giữ nguyên màn hình (signalPerf còn hợp lệ nếu đã nhận trước đó).
+        // Ngoài SIGNAL: đưa về trạng thái sạch cho vòng sau.
+        if (phase !== "SIGNAL") { iDisabled ? showLocked() : showWait(); }
+      });
+    });
+
+    socket.on("disconnect", () => {
+      if (joined) $("playersStatus").textContent = "Mất kết nối — đang kết nối lại…";
+    });
+
+    // Khi app hiện lại / có mạng lại: thúc socket kết nối ngay (không chờ backoff)
+    const ensureConnected = () => { if (joined && !socket.connected) socket.connect(); };
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") ensureConnected(); });
+    window.addEventListener("online", ensureConnected);
+    window.addEventListener("pageshow", ensureConnected);
 
     function escapeHtml(s) {
       return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));

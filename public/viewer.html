@@ -76,14 +76,27 @@
       display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
     }
     .pcard .ptime {
-      font-family: "Shantell Sans", sans-serif; font-weight: 800; font-size: clamp(30px, 3.6vw, 60px);
-      line-height: 1; color: var(--ink-soft);
+      font-family: "Shantell Sans", sans-serif; font-weight: 800; font-size: clamp(26px, 3vw, 50px);
+      line-height: 1; color: var(--ink);
+      /* nền dạng card + bóng đáy; viền dùng chính màu viền của card */
+      background: var(--paper); border: 2px solid #bcd6f2; border-radius: 14px;
+      padding: clamp(4px, .5vw, 9px) clamp(12px, 1.3vw, 22px);
+      box-shadow: 0 4px 0 #e2dac6; max-width: 100%; margin-top: 4px;
+    }
+    /* Nền + viền chip thời gian ăn theo hạng của card */
+    .pcard.win .ptime {
+      background: var(--gold-soft); color: #6b4a06;
+      border-color: var(--gold); box-shadow: 0 4px 0 #eab948;
+    }
+    .pcard.buzzed .ptime {
+      background: var(--green-soft); color: #2f8a5f;
+      border-color: var(--green); box-shadow: 0 4px 0 #a4ddc2;
     }
     .pcard .pstate { font-size: clamp(16px, 1.6vw, 26px); color: var(--ink-soft); font-weight: 600; }
 
     /* Trạng thái — mỗi trạng thái một màu nút riêng */
     .pcard.buzzed { background: var(--green); border-color: var(--green); box-shadow: 0 7px 0 #52b082; }
-    .pcard.buzzed .pname, .pcard.buzzed .ptime { color: #fff; }
+    .pcard.buzzed .pname { color: #fff; }
     .pcard.buzzed .pstate { color: rgba(255, 255, 255, .85); }
     .pcard.win {
       border-color: var(--gold);
@@ -91,7 +104,7 @@
       box-shadow: 0 9px 0 #d99a1f;      /* cùng tông bóng với nút .mini */
       transform: scale(1.03);
     }
-    .pcard.win .pname, .pcard.win .ptime { color: #6b4a06; }
+    .pcard.win .pname { color: #6b4a06; }
     .pcard.off {
       opacity: .6; border-style: dashed;
       background: #f4ede0; border-color: #e4dcc9; box-shadow: 0 5px 0 #e4dcc9;
