@@ -6,13 +6,18 @@ import { dirname, join } from "path";
 import { networkInterfaces } from "os";
 import QRCode from "qrcode";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
+// Khi đóng gói bằng pkg (.exe): đọc thư mục public đặt CẠNH file exe (chỉnh sửa được).
+// Khi chạy dev (node server.js): đọc public cạnh mã nguồn.
+const ROOT_DIR = process.pkg
+  ? dirname(process.execPath)
+  : dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 const httpServer = createServer(app);
-const io = new Server(httpServer);
+// serveClient:false -> không cần file client-dist trong exe (đã vendor sẵn vào public/vendor)
+const io = new Server(httpServer, { serveClient: false });
 
-app.use(express.static(join(__dirname, "public")));
+app.use(express.static(join(ROOT_DIR, "public")));
 
 const PORT = process.env.PORT || 3000;
 const MASTER_GRACE_MS = 60000; // giữ phòng 60s khi master rớt để reload/kết nối lại

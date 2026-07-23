@@ -6,11 +6,16 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "build:exe": "node build.mjs"
   },
   "dependencies": {
     "express": "^4.19.2",
     "qrcode": "^1.5.4",
     "socket.io": "^4.7.5"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.1",
+    "pkg": "^5.8.1"
   }
 }
