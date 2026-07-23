@@ -561,7 +561,7 @@
     window.addEventListener("resize", () => { if (!$("answerModal").classList.contains("hidden")) fwResize(); });
     // ESC: ẩn modal đáp án + đồng bộ ngược lại Master (tắt reveal)
     document.addEventListener("keydown", (e) => {
-      if (e.key === "Backspace" && !$("answerModal").classList.contains("hidden")) {
+      if (e.code === "Space" && !$("answerModal").classList.contains("hidden")) {
         hideAnswerModal();
         socket.emit("viewer:hideAnswer");
       }
