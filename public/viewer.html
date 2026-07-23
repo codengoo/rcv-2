@@ -60,6 +60,9 @@
     .pcard .pav {
       width: clamp(64px, 6.4vw, 116px); height: clamp(64px, 6.4vw, 116px);
       font-size: clamp(36px, 3.8vw, 66px); margin-bottom: 4px;
+      /* bóng 3D lớn hơn cho avatar to, theo sắc tối của màu nền */
+      box-shadow: 0 6px 0 rgba(0, 0, 0, .22);
+      box-shadow: 0 6px 0 color-mix(in srgb, var(--av, #000) 68%, #000);
     }
     .pcard .rank {
       position: absolute; top: -14px; left: -10px;
@@ -187,7 +190,7 @@
         body = `<div class="pstate">${phase === "SIGNAL" ? "…đang chờ bấm" : "sẵn sàng"}</div>`;
       }
       const name = (isWin ? "👑 " : "") + escapeHtml(p.name);
-      const av = p.avatar ? `<span class="avatar pav" style="background:${p.avatar.color}">${p.avatar.emoji}</span>` : "";
+      const av = p.avatar ? `<span class="avatar pav" style="--av:${p.avatar.color};background:${p.avatar.color}">${p.avatar.emoji}</span>` : "";
       el.className = cls;
       el.innerHTML = `${medal ? `<div class="rank">${medal}</div>` : ""}${av}<div class="pname">${name}</div>${body}`;
     }

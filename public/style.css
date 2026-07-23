@@ -174,7 +174,10 @@ button.ghost:active { box-shadow: 0 1px 0 #ece3cd; }
 .avatar {
   display: inline-flex; align-items: center; justify-content: center;
   border-radius: 50%; flex: 0 0 auto; line-height: 1;
-  box-shadow: 0 2px 6px rgba(0,0,0,.15); overflow: hidden;
+  overflow: hidden;
+  /* Bóng đáy 3D giống nút: dùng sắc tối hơn của chính màu nền avatar (--av) */
+  box-shadow: 0 3px 0 rgba(0, 0, 0, .22);
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--av, #000) 68%, #000);
 }
 /* Nút toàn màn hình (dùng chung cả 3 trang) */
 .fs-btn {

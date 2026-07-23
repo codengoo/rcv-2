@@ -100,6 +100,11 @@
     #gameCard .stage.foul   { background: var(--red-soft); border-color: var(--red); color: #c8544c; box-shadow: 0 10px 0 #f2b3ad; }
     /* Ô signal là nút bấm khổng lồ -> lún xuống khi chạm */
     #gameCard .stage.signal:active { transform: translateY(6px); box-shadow: 0 6px 0 #4fb587; }
+    /* Avatar lớn ở màn chờ: bóng đáy 3D theo sắc tối của màu nền */
+    #gameCard .stage .avatar {
+      box-shadow: 0 7px 0 rgba(0, 0, 0, .22);
+      box-shadow: 0 7px 0 color-mix(in srgb, var(--av, #000) 68%, #000);
+    }
   </style>
 </head>
 <body>
@@ -214,7 +219,7 @@
       if (iDisabled) return showLocked();
       stage.className = "stage wait";
       const icon = myAvatar
-        ? `<span class="avatar" style="width:clamp(90px,28vw,160px);height:clamp(90px,28vw,160px);background:${myAvatar.color};font-size:clamp(52px,17vw,96px)">${myAvatar.emoji}</span>`
+        ? `<span class="avatar" style="--av:${myAvatar.color};width:clamp(90px,28vw,160px);height:clamp(90px,28vw,160px);background:${myAvatar.color};font-size:clamp(52px,17vw,96px)">${myAvatar.emoji}</span>`
         : `<div class="bell">🔔</div>`;
       $("stageText").innerHTML = `${icon}<div class="tap-hint" style="margin-top:10px">${escapeHtml(myName)} · chờ hiệu lệnh…</div>`;
       $("gameMsg").textContent = "";
