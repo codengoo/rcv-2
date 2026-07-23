@@ -759,6 +759,25 @@
             (typeof q.answer === "string" && q.answer))
         );
       }
+      // Bỏ ký tự markdown -> chỉ còn text thuần (dùng cho preview trên master)
+      function stripMd(md) {
+        return String(md)
+          .replace(/```/g, "")
+          .replace(/`([^`]+)`/g, "$1")
+          .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+          .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+          .replace(/^\s{0,3}#{1,6}\s+/gm, "")
+          .replace(/^\s*>\s?/gm, "")
+          .replace(/^\s*[-*+]\s+/gm, "")
+          .replace(/^\s*\d+\.\s+/gm, "")
+          .replace(/\*\*([^*]+)\*\*/g, "$1")
+          .replace(/__([^_]+)__/g, "$1")
+          .replace(/\*([^*]+)\*/g, "$1")
+          .replace(/_([^_]+)_/g, "$1")
+          .replace(/~~([^~]+)~~/g, "$1")
+          .replace(/\s+/g, " ")
+          .trim();
+      }
       function updateQBar() {
         const t = $("qToggle"),
           rv = $("qReveal");
@@ -770,7 +789,7 @@
         }
         $("qCount").textContent = qIndex + 1 + "/" + QUESTIONS.length;
         $("qPreview").textContent =
-          QUESTIONS[qIndex].q || "🖼 (đề bằng hình ảnh)";
+          stripMd(QUESTIONS[qIndex].q) || "🖼 (đề bằng hình ảnh)";
         t.classList.toggle("on", qShown);
         t.innerHTML = qShown
           ? '<i class="fa-solid fa-eye-slash"></i> Ẩn đề'

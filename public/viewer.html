@@ -7,7 +7,7 @@
   <title>📺 Rung chuông vàng - Màn chiếu</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Shantell+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Shantell+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
   <link rel="stylesheet" href="/style.css" />
   <!-- PWA: mở full màn hình khi thêm vào MH chính (iPhone/iPad + Android) -->
@@ -110,7 +110,7 @@
     #stage.qmode .qpanel::-webkit-scrollbar { width: 0; }
     .qpanel { --qscale: 0.9; }
     .qpanel .qtext {
-      font-family: "Shantell Sans", sans-serif; font-weight: 700; line-height: 1.28; color: var(--ink);
+      font-family: "Shantell Sans", sans-serif; font-weight: 600; line-height: 1.28; color: var(--ink);
       font-size: calc(clamp(18px, 2.3vw, 44px) * var(--qscale));
     }
     /* Markdown trong nội dung đề */
@@ -263,6 +263,9 @@
       font-family: "Shantell Sans", sans-serif; font-weight: 800; color: var(--ink);
       font-size: clamp(40px, 8vw, 120px); line-height: 1.1; margin-top: 10px; word-break: break-word;
     }
+    .answer-value code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .8em; background: var(--blue-soft); padding: .05em .3em; border-radius: 10px; }
+    .answer-value a { color: var(--blue); }
+    .answer-value del { opacity: .55; }
     @keyframes answerPop { 0% { opacity: 0; transform: scale(.6); } 60% { transform: scale(1.06); } 100% { opacity: 1; transform: scale(1); } }
   </style>
 </head>
@@ -529,9 +532,9 @@
       fwParticles = [];
       const c = $("fireworks"); if (c) c.getContext("2d").clearRect(0, 0, c.width, c.height);
     }
-    function showAnswerModal(text) {
+    function showAnswerModal(html) {
       const wasHidden = $("answerModal").classList.contains("hidden");
-      $("answerValue").textContent = text;
+      $("answerValue").innerHTML = html;   // đã render markdown -> dùng innerHTML
       $("answerModal").classList.remove("hidden");
       if (wasHidden) startFireworks(); // chỉ bắn pháo hoa khi lần đầu mở
     }
@@ -608,14 +611,14 @@
         ? `<div class="qanswer"><i class="fa-solid fa-circle-check"></i> Đáp án: ${mdInlineSafe(q.answer)}</div>` : "";
       $("qpanel").innerHTML = text + img + (opts ? `<ul class="qopts">${opts}</ul>` : "") + textAns;
 
-      // Popup + pháo hoa hiển thị đáp án đúng
-      let ansText = "";
+      // Popup + pháo hoa hiển thị đáp án đúng (render markdown)
+      let ansHtml = "";
       if (reveal) {
         if (typeof q.answer === "number" && q.options && q.options[q.answer] !== undefined)
-          ansText = String.fromCharCode(65 + q.answer) + ". " + q.options[q.answer];
-        else if (typeof q.answer === "string" && q.answer) ansText = q.answer;
+          ansHtml = String.fromCharCode(65 + q.answer) + ". " + mdInlineSafe(q.options[q.answer]);
+        else if (typeof q.answer === "string" && q.answer) ansHtml = mdInlineSafe(q.answer);
       }
-      if (ansText) showAnswerModal(ansText); else hideAnswerModal();
+      if (ansHtml) showAnswerModal(ansHtml); else hideAnswerModal();
     }
     function applyQuestion(q, reveal) {
       const on = !!(q && (q.q || q.img));
