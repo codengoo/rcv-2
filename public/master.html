@@ -457,6 +457,7 @@
     const enterGameMode = () => {
       $("room").classList.add("gamemode"); // chuyển sang layout tập trung
       $("infoBtn").classList.add("show");  // hiện nút Thông tin phòng trên hàng tiêu đề
+      qShown = false; updateQBar(); pushQuestion(); // mặc định KHÔNG chiếu đề khi vào màn sẵn sàng
       updateControls(lastPlayers);         // refresh thanh điều khiển cho đúng chế độ gamemode
     };
     // Nút "Bắt đầu" trong gamemode: ra hiệu thật.
