@@ -41,6 +41,11 @@
       "q": "Lan, Bình, Hòa mỗi người có **35** quả bóng bay.\n\n- Lan làm vỡ `5` quả\n- Bình làm vỡ *một nửa* số còn lại của Lan\n- Hoà làm vỡ số bóng bằng **tổng** 2 bạn kia làm vỡ\n\nHỏi số bóng còn lại của **cả 3 bạn** là bao nhiêu?",
       "options": ["60", "65", "70", "75"],
       "answer": 1
+    },
+    {
+      "q": "Đọc đoạn vè dưới đây và sửa lại các lỗi chính tả.\n\n> Rung răng giung dẻ\n> Dắt chẻ đi chơi\n> Đến ngõ nhà chời\n> Lạy cậu lại mợ\n> Cho chó về quê\n> Cho dê đi học\n> Cho cóc ở nhà\n> Cho gà bới bếp\n> Sì sà sì xụp\n> Ngồi thụp suống đây",
+      "options": [],
+      "answer": "- Rung → Dung\n- giung → dung\n- chẻ → trẻ\n- chời → trời\n- Lại → lạy\n- mợ → mụ\n- chó → cháu\n- Sì → Xì\n- suống → xuống"
     }
   ]
 }
