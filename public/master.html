@@ -49,7 +49,7 @@
     .qbar-right { display: inline-flex; align-items: center; gap: 6px; }
     .qbar-count { font-size: 13px; font-weight: 700; color: var(--ink-soft); }
     /* Nút reload đề dùng chung style nút (giống next/prev) nhưng nhỏ hơn, có hiệu ứng xoay */
-    #qReload { padding: 5px 8px; font-size: 12px; box-shadow: 0 2px 0 #d99a1f; }
+    #qReload { padding: 5px 8px; font-size: 12px; box-shadow: 0 2px 0 #d99a1f; border: none}
     #qReload:active { box-shadow: 0 1px 0 #d99a1f; }
     #qReload.spin i { animation: qspin .6s linear infinite; }
     @keyframes qspin { to { transform: rotate(360deg); } }
@@ -62,6 +62,7 @@
     .qbar-nav #qToggle { flex: 1 1 auto; }
     button.ghost-mini { flex: 0 0 auto; background: #fff; color: var(--ink); border: 2px solid var(--line); box-shadow: 0 3px 0 #ece3cd; padding: 9px 12px; }
     button.ghost-mini:active { box-shadow: 0 1px 0 #ece3cd; }
+    #qPrev, #qNext { border: none; }
     #qToggle.on { background: var(--green); color: #fff; box-shadow: 0 3px 0 #52b082; }
     #room:not(.gamemode) .controls { display: none; }
     #startBtnEntry { margin-top: 14px; }
