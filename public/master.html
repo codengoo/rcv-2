@@ -33,7 +33,6 @@
 
     /* Thanh điều khiển — chỉ hiện khi đang chơi (gamemode) */
     .controls { margin: 4px 0 16px; }
-    .controls .msg { margin: 8px 0; }
     .controls button { margin-top: 6px; }
     /* Đồng hồ thời gian đã trôi qua (ẩn cho tới khi ra hiệu) */
     .elapsed {
@@ -43,11 +42,17 @@
     /* Thanh điều khiển đề bài */
     .qbar {
       background: #fffdf7; border: 2px solid var(--line); border-radius: 16px;
-      padding: 12px; margin: 6px 0; text-align: left;
+      padding: 12px; margin: 0 0 6px; text-align: left;
     }
     .qbar-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
     .qbar-label { font-weight: 700; color: var(--ink); font-size: 14px; }
+    .qbar-right { display: inline-flex; align-items: center; gap: 6px; }
     .qbar-count { font-size: 13px; font-weight: 700; color: var(--ink-soft); }
+    /* Nút reload đề dùng chung style nút (giống next/prev) nhưng nhỏ hơn, có hiệu ứng xoay */
+    #qReload { padding: 5px 8px; font-size: 12px; box-shadow: 0 2px 0 #d99a1f; }
+    #qReload:active { box-shadow: 0 1px 0 #d99a1f; }
+    #qReload.spin i { animation: qspin .6s linear infinite; }
+    @keyframes qspin { to { transform: rotate(360deg); } }
     .qbar-preview {
       font-size: 14px; font-weight: 600; color: var(--ink-soft); line-height: 1.3;
       display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
@@ -104,8 +109,7 @@
         background: #fffdf7; border: 2px solid var(--line);
         border-radius: 20px; box-shadow: 0 6px 18px rgba(90, 121, 168, .09);
       }
-      /* Thông báo + đồng hồ dồn lên giữa-trên, nút hành động ghim đáy panel */
-      #room.gamemode > .controls > .msg { margin-top: auto; }
+      /* Khung đề nằm sát trên; nút hành động ghim đáy panel */
       #room.gamemode > .controls > button { margin-top: auto; }
       #room.gamemode > .room-body { margin-top: 0; }
     }
@@ -232,14 +236,14 @@
       <div id="room" class="hidden">
         <!-- Thanh điều khiển: luôn hiển thị -->
         <div class="controls">
-          <div id="phaseBox" class="msg"></div>
-          <div id="elapsed" class="elapsed"></div>
-
           <!-- Điều khiển đề bài -->
           <div class="qbar">
             <div class="qbar-top">
               <span class="qbar-label"><i class="fa-solid fa-list-check"></i> Đề bài</span>
-              <span class="qbar-count" id="qCount">–</span>
+              <span class="qbar-right">
+                <button id="qReload" class="mini ghost-mini" title="Tải lại đề từ file"><i class="fa-solid fa-rotate"></i></button>
+                <span class="qbar-count" id="qCount">–</span>
+              </span>
             </div>
             <div class="qbar-preview" id="qPreview">Chưa có đề</div>
             <div class="qbar-nav">
@@ -248,6 +252,9 @@
               <button id="qNext" class="mini ghost-mini" title="Đề sau"><i class="fa-solid fa-chevron-right"></i></button>
             </div>
           </div>
+
+          <!-- Đồng hồ nằm dưới khung đề -->
+          <div id="elapsed" class="elapsed"></div>
 
           <button id="startBtn" class="green"><i class="fa-solid fa-play"></i> Bắt đầu</button>
           <button id="stopBtn" class="red hidden"><i class="fa-solid fa-stop"></i> Dừng &amp; công bố kết quả</button>
@@ -322,33 +329,69 @@
       if (hide) $("elapsed").style.display = "none";
     }
 
-    // ---- Đề bài (tạm thời mock) ----
-    const QUESTIONS = [
-      { q: "Thủ đô của Việt Nam là thành phố nào?", options: ["Hà Nội", "TP. Hồ Chí Minh", "Đà Nẵng", "Huế"] },
-      { q: "Kết quả của phép tính 7 × 8 bằng bao nhiêu?", options: ["54", "56", "64", "48"] },
-      { q: "Hành tinh nào gần Mặt Trời nhất?", options: ["Sao Kim", "Trái Đất", "Sao Thủy", "Sao Hỏa"] },
-      { q: "Đại dương nào lớn nhất thế giới?", options: ["Đại Tây Dương", "Ấn Độ Dương", "Bắc Băng Dương", "Thái Bình Dương"] },
-      { q: "Tác giả của Truyện Kiều là ai?", options: ["Nguyễn Du", "Hồ Xuân Hương", "Nguyễn Trãi", "Xuân Diệu"] },
-    ];
+    // ---- Đề bài (nạp từ file JSON khi tải trang) ----
+    let QUESTIONS = [];
     let qIndex = 0;
-    let qShown = false; // đề đang được chiếu lên viewer hay không
+    let qShown = false;            // đề đang được chiếu lên viewer hay không
+    let reclaimedQuestion = null;  // đề đang chiếu lúc reclaim (khớp lại sau khi nạp JSON)
 
     function updateQBar() {
-      $("qCount").textContent = (qIndex + 1) + "/" + QUESTIONS.length;
-      $("qPreview").textContent = QUESTIONS[qIndex].q;
       const t = $("qToggle");
+      if (!QUESTIONS.length) {
+        $("qCount").textContent = "–";
+        $("qPreview").textContent = "Đang tải đề bài…";
+        return;
+      }
+      $("qCount").textContent = (qIndex + 1) + "/" + QUESTIONS.length;
+      $("qPreview").textContent = QUESTIONS[qIndex].q || "🖼 (đề bằng hình ảnh)";
       t.classList.toggle("on", qShown);
       t.innerHTML = qShown
         ? '<i class="fa-solid fa-eye-slash"></i> Ẩn đề'
         : '<i class="fa-solid fa-tv"></i> Chiếu đề';
     }
     function pushQuestion() {
-      socket.emit("master:setQuestion", { question: qShown ? QUESTIONS[qIndex] : null });
+      socket.emit("master:setQuestion", { question: qShown && QUESTIONS[qIndex] ? QUESTIONS[qIndex] : null });
     }
-    $("qPrev").onclick = () => { qIndex = (qIndex - 1 + QUESTIONS.length) % QUESTIONS.length; updateQBar(); if (qShown) pushQuestion(); };
-    $("qNext").onclick = () => { qIndex = (qIndex + 1) % QUESTIONS.length; updateQBar(); if (qShown) pushQuestion(); };
-    $("qToggle").onclick = () => { qShown = !qShown; updateQBar(); pushQuestion(); };
+    // Khôi phục đề đang chiếu khi reclaim (khớp index theo nội dung câu hỏi)
+    function applyReclaimedQuestion(q) {
+      reclaimedQuestion = q || null;
+      qShown = !!q;
+      if (q && QUESTIONS.length) {
+        const idx = QUESTIONS.findIndex((x) => x.q === q.q);
+        if (idx >= 0) qIndex = idx;
+      }
+      updateQBar();
+    }
+    $("qPrev").onclick = () => { if (!QUESTIONS.length) return; qIndex = (qIndex - 1 + QUESTIONS.length) % QUESTIONS.length; updateQBar(); if (qShown) pushQuestion(); };
+    $("qNext").onclick = () => { if (!QUESTIONS.length) return; qIndex = (qIndex + 1) % QUESTIONS.length; updateQBar(); if (qShown) pushQuestion(); };
+    $("qToggle").onclick = () => { if (!QUESTIONS.length) return; qShown = !qShown; updateQBar(); pushQuestion(); };
     updateQBar();
+
+    // Nạp danh sách đề từ file JSON (dùng cả khi tải trang và khi bấm Tải lại)
+    function loadQuestions() {
+      const btn = $("qReload");
+      btn.classList.add("spin");
+      return fetch("/questions.json", { cache: "no-store" })
+        .then((r) => r.json())
+        .then((data) => {
+          QUESTIONS = Array.isArray(data) ? data : (data.questions || []);
+          if (qIndex >= QUESTIONS.length) qIndex = 0;
+          if (reclaimedQuestion) applyReclaimedQuestion(reclaimedQuestion);
+          else updateQBar();
+          if (qShown) pushQuestion(); // đề đang chiếu: cập nhật lại nội dung mới
+        })
+        .catch(() => { $("qPreview").textContent = "Không tải được đề bài."; })
+        .finally(() => { btn.classList.remove("spin"); });
+    }
+    $("qReload").onclick = () => { if (!$("qReload").disabled) loadQuestions(); };
+    loadQuestions();
+
+    // Khóa đổi đề khi đang ra hiệu (đã bắt đầu vòng chơi)
+    function lockQBar(locked) {
+      $("qPrev").disabled = locked;
+      $("qNext").disabled = locked;
+      $("qReload").disabled = locked;
+    }
 
     // Dựng UI phòng từ kết quả create/reclaim, và ghi ?code vào URL để reload vào lại được
     function enterRoom(res) {
@@ -375,12 +418,8 @@
           return;
         }
         enterRoom(res);
-        // Khôi phục trạng thái đề bài đang chiếu
-        if (res.question) {
-          const idx = QUESTIONS.findIndex((x) => x.q === res.question.q);
-          if (idx >= 0) qIndex = idx;
-          qShown = true; updateQBar();
-        }
+        // Khôi phục trạng thái đề bài đang chiếu (khớp lại kể cả khi JSON chưa nạp xong)
+        applyReclaimedQuestion(res.question);
         // Khôi phục người thắng (reload lúc đang xem kết quả sẽ không nhận game:results)
         const buzzed = (res.players || []).filter((p) => p.buzzed && !p.disabled);
         if (res.phase !== "SIGNAL" && buzzed.length) {
@@ -442,7 +481,6 @@
 
     function updateControls(players) {
       const gm = $("room").classList.contains("gamemode");
-      const box = $("phaseBox");
       const startBtn = $("startBtn"), startEntry = $("startBtnEntry"), stopBtn = $("stopBtn"), resetBtn = $("resetBtn");
       const show = (el, on) => el.classList.toggle("hidden", !on);
       const active = players.filter((pl) => !pl.disabled).length;
@@ -450,18 +488,15 @@
       if (phase === "SIGNAL") {
         show(startBtn, false); show(startEntry, false);
         show(resetBtn, false); show(stopBtn, true);
-        box.innerHTML = '<i class="fa-solid fa-circle" style="color:var(--green)"></i> ĐÃ RA HIỆU! Chờ người chơi bấm — hoặc bấm Dừng để công bố ngay.';
       } else { // LOBBY
         show(stopBtn, false);
         if (winnerId || anyBuzzed) {
           show(startBtn, false); show(startEntry, false); show(resetBtn, true);
-          box.innerHTML = '<i class="fa-solid fa-trophy" style="color:var(--gold)"></i> Đã công bố kết quả. Bấm Chơi lại để bắt đầu vòng mới.';
         } else {
           show(resetBtn, false);
           // Sẵn sàng: entry -> nút trong panel; gamemode -> nút ở thanh điều khiển
           show(startEntry, !gm); show(startBtn, gm);
           startBtn.disabled = startEntry.disabled = active === 0;
-          box.innerHTML = '<i class="fa-regular fa-hourglass-half"></i> Sẵn sàng. Bấm Bắt đầu để ra hiệu ngay lập tức.';
         }
       }
     }
@@ -474,6 +509,7 @@
       // Đồng hồ: bắt đầu khi vào SIGNAL, dừng (giữ số cuối) khi công bố kết quả
       if (p === "SIGNAL" && prevPhase !== "SIGNAL") startElapsed();
       else if (p !== "SIGNAL" && prevPhase === "SIGNAL") stopElapsed(false);
+      lockQBar(p === "SIGNAL"); // đã ra hiệu -> không cho đổi đề
       $("count").textContent = players.length;
       $("emptyHint").style.display = players.length ? "none" : "block";
 

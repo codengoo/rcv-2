@@ -1,0 +1,30 @@
+{
+  "questions": [
+    {
+      "q": "This competition brings together the strongest teams from different countries, but not every country can take part in. Before reaching it, teams must pass a long qualification process. It is held only once every four years, making every match even more special. Winning this competition is considered the greatest achievement in international football. What is it?",
+      "options": ["FIFA World Cup", "UEFA Euro", "Champions League", "Olympic Games"],
+      "img": "/images/worldcup.png"
+    },
+    {
+      "q": "Kết quả của phép tính 7 × 8 bằng bao nhiêu?",
+      "options": ["54", "56", "64", "48"]
+    },
+    {
+      "q": "Hành tinh nào gần Mặt Trời nhất?",
+      "options": ["Sao Kim", "Trái Đất", "Sao Thủy", "Sao Hỏa"]
+    },
+    {
+      "q": "Đại dương nào lớn nhất thế giới?",
+      "options": [
+        "Đại Tây Dương",
+        "Ấn Độ Dương",
+        "Bắc Băng Dương",
+        "Thái Bình Dương"
+      ]
+    },
+    {
+      "q": "Lan, Bình, Hòa mỗi người có 35 quả bóng bay. Lan làm vỡ 5 quả, Bình làm vỡ số bóng bằng một nửa số còn lại của Lan, Hoà làm vỡ số bóng bằng tổng 2 bạn kia làm vỡ. Hỏi số bóng còn lại của cả 3 bạn là bao nhiêu?",
+      "options": ["Nguyễn Du", "Hồ Xuân Hương", "Nguyễn Trãi", "Xuân Diệu"]
+    }
+  ]
+}

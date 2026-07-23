@@ -58,31 +58,71 @@
     }
 
     /* ===== Layout ĐỀ BÀI: đề bên trái (lớn) + người chơi bên phải ===== */
+    /* Mặc định (không có đề): ẩn phần đề, grid hiển thị như lưới đầy đủ */
     .qwrap { display: block; }
-    .qpanel { display: none; }
+    .qleft, .qresizer { display: none; }
+
+    /* Khi có đề: khung cao đúng 1 màn, chia 3 cột [đề | thanh kéo | người chơi] */
+    #stage.qmode { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+    #stage.qmode .vhead { display: none; }              /* status đã chuyển vào vùng đề */
     #stage.qmode .qwrap {
+      flex: 1 1 auto; min-height: 0;
       display: grid;
-      grid-template-columns: minmax(0, 1.7fr) minmax(280px, 1fr);
-      gap: clamp(18px, 2vw, 36px);
-      align-items: start;
+      grid-template-columns: var(--qsplit, 60%) 20px minmax(0, 1fr);
     }
-    /* Panel đề: giữ style card, chỉ chỉnh kích thước */
+    #stage.qmode .qleft { display: flex; flex-direction: column; min-height: 0; gap: clamp(10px, 1vw, 18px); }
+    #stage.qmode .grid {
+      overflow-y: auto; min-height: 0; align-content: start;
+      grid-template-columns: repeat(auto-fill, minmax(clamp(150px, 12vw, 210px), 1fr));
+      row-gap: clamp(18px, 2vw, 30px);
+      scrollbar-width: none;
+    }
+    #stage.qmode .grid::-webkit-scrollbar { width: 0; }
+
+    /* Header vùng đề: status (chuyển vào) + dropdown cỡ chữ */
+    .qhead { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .qhead .vbanner { margin-left: 0; }
+    .qfont-select {
+      margin-left: auto; font-family: "Shantell Sans", sans-serif; font-weight: 700;
+      font-size: 16px; color: var(--ink); background: #fffdf7;
+      border: 2px solid var(--line); border-radius: 12px; padding: 8px 12px; cursor: pointer;
+    }
+
+    /* Thanh kéo đổi kích thước (chỉ hiện ở layout đề) */
+    .qresizer { display: none; cursor: col-resize; align-items: center; justify-content: center; touch-action: none; }
+    #stage.qmode .qresizer { display: flex; align-self: stretch; }
+    .qresizer::before {
+      content: ""; width: 6px; height: clamp(48px, 20vh, 160px); border-radius: 999px;
+      background: #cdd8e8; box-shadow: 0 2px 0 #b7c6dc;
+    }
+    .qresizer:hover::before { background: var(--blue); }
+
+    /* Panel đề: giữ style card, cỡ chữ theo --qscale (dropdown chỉnh) */
     #stage.qmode .qpanel {
-      display: flex; flex-direction: column; gap: clamp(14px, 1.6vw, 26px);
+      flex: 1 1 auto; min-height: 0; overflow-y: auto;
+      display: flex; flex-direction: column; gap: clamp(12px, 1.4vw, 22px);
       background: var(--paper); border: 3px solid var(--line); border-radius: 26px;
-      box-shadow: 0 8px 0 #e2dac6; padding: clamp(20px, 2.4vw, 46px);
+      box-shadow: 0 8px 0 #e2dac6; padding: clamp(18px, 2.2vw, 40px);
+      scrollbar-width: none;
     }
+    #stage.qmode .qpanel::-webkit-scrollbar { width: 0; }
+    .qpanel { --qscale: 0.9; }
     .qpanel .qtext {
-      font-family: "Shantell Sans", sans-serif; font-weight: 700;
-      font-size: clamp(28px, 3.4vw, 60px); line-height: 1.25; color: var(--ink);
+      font-family: "Shantell Sans", sans-serif; font-weight: 700; line-height: 1.28; color: var(--ink);
+      font-size: calc(clamp(18px, 2.3vw, 44px) * var(--qscale));
     }
-    .qpanel .qopts { list-style: none; display: grid; gap: clamp(10px, 1.2vw, 18px); }
+    .qpanel .qimg {
+      align-self: center; max-width: 100%; max-height: 42vh; object-fit: contain;
+      border-radius: 16px; border: 2px solid var(--line); background: #fff;
+    }
+    .qpanel .qopts { list-style: none; display: grid; gap: clamp(8px, 1vw, 16px); }
     .qpanel .qopt {
-      display: flex; align-items: center; gap: 14px;
+      display: flex; align-items: center; gap: 12px;
       background: var(--blue-soft); border: 2px solid #bcd6f2; border-radius: 16px;
       box-shadow: 0 5px 0 #bcd6f2;
-      padding: clamp(12px, 1.2vw, 20px) clamp(16px, 1.6vw, 26px);
-      font-weight: 700; font-size: clamp(20px, 2.2vw, 38px); color: var(--ink);
+      padding: clamp(10px, 1vw, 18px) clamp(14px, 1.4vw, 24px);
+      font-weight: 700; color: var(--ink);
+      font-size: calc(clamp(15px, 1.7vw, 30px) * var(--qscale));
     }
     .qpanel .qopt-key {
       flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
@@ -90,10 +130,6 @@
       background: var(--gold); color: #6b4a06; font-weight: 800;
     }
     /* Cột người chơi: giữ style card, thu nhỏ kích thước cho vừa */
-    #stage.qmode .grid {
-      grid-template-columns: repeat(auto-fill, minmax(clamp(150px, 12vw, 210px), 1fr));
-      row-gap: clamp(18px, 2vw, 30px);
-    }
     #stage.qmode .pcard { min-height: clamp(90px, 8vw, 130px); padding: clamp(10px, 1vw, 18px); }
     #stage.qmode .pcard .pav {
       width: clamp(46px, 4.4vw, 76px); height: clamp(46px, 4.4vw, 76px); font-size: clamp(24px, 2.6vw, 42px);
@@ -202,12 +238,24 @@
 
   <!-- Màn chiếu -->
   <div id="stage">
-    <div class="vhead">
+    <div class="vhead" id="vhead">
       <div class="vtimer" id="vtimer"></div>
       <div class="vbanner wait" id="banner"><i class="fa-regular fa-hourglass-half"></i> Chờ hiệu lệnh…</div>
     </div>
-    <div class="qwrap">
-      <div class="qpanel" id="qpanel"></div>
+    <div class="qwrap" id="qwrap">
+      <div class="qleft">
+        <div class="qhead" id="qhead">
+          <!-- status (banner/timer) được chuyển vào đây khi ở layout đề -->
+          <select id="qFont" class="qfont-select" title="Cỡ chữ đề bài">
+            <option value="0.75">Cỡ chữ · Nhỏ</option>
+            <option value="0.9" selected>Cỡ chữ · Vừa</option>
+            <option value="1.1">Cỡ chữ · Lớn</option>
+            <option value="1.35">Cỡ chữ · Rất lớn</option>
+          </select>
+        </div>
+        <div class="qpanel" id="qpanel"></div>
+      </div>
+      <div class="qresizer" id="qresizer" title="Kéo để đổi kích thước hai vùng"></div>
       <div class="grid" id="grid"></div>
     </div>
     <div class="vempty hidden" id="empty">Chưa có thí sinh nào tham gia…</div>
@@ -372,17 +420,60 @@
 
     // ---- Đề bài: layout đề trái + người chơi phải ----
     function renderQPanel(q) {
+      const text = q.q ? `<div class="qtext">${escapeHtml(q.q)}</div>` : "";
+      const img = q.img ? `<img class="qimg" src="${escapeHtml(q.img)}" alt="Ảnh đề bài" />` : "";
       const opts = (q.options || []).map((o, i) =>
         `<li class="qopt"><span class="qopt-key">${String.fromCharCode(65 + i)}</span><span>${escapeHtml(o)}</span></li>`
       ).join("");
-      $("qpanel").innerHTML = `<div class="qtext">${escapeHtml(q.q)}</div>` + (opts ? `<ul class="qopts">${opts}</ul>` : "");
+      $("qpanel").innerHTML = text + img + (opts ? `<ul class="qopts">${opts}</ul>` : "");
     }
     function applyQuestion(q) {
-      const on = !!(q && q.q);
+      const on = !!(q && (q.q || q.img));
       $("stage").classList.toggle("qmode", on);
-      if (on) renderQPanel(q);
+      if (on) {
+        renderQPanel(q);
+        // Chuyển status (banner) + đồng hồ vào đầu vùng đề — status trước, timer sau
+        const qhead = $("qhead");
+        qhead.insertBefore($("vtimer"), qhead.firstChild);
+        qhead.insertBefore($("banner"), qhead.firstChild);
+      } else {
+        // Trả về header trên cùng khi thoát layout đề
+        $("vhead").appendChild($("vtimer"));
+        $("vhead").appendChild($("banner"));
+      }
     }
     socket.on("room:question", ({ question }) => applyQuestion(question));
+
+    // Dropdown cỡ chữ đề bài (ghi nhớ lựa chọn)
+    function setQFont(v) {
+      $("qpanel").style.setProperty("--qscale", v);
+      try { localStorage.setItem("rcv-qfont", v); } catch {}
+    }
+    (function initQFont() {
+      try { const s = localStorage.getItem("rcv-qfont"); if (s) $("qFont").value = s; } catch {}
+      setQFont($("qFont").value);
+      $("qFont").addEventListener("change", (e) => setQFont(e.target.value));
+    })();
+
+    // Thanh kéo đổi kích thước vùng đề / vùng người chơi (ghi nhớ)
+    (function initResizer() {
+      const wrap = $("qwrap"), rz = $("qresizer");
+      const apply = (pct) => wrap.style.setProperty("--qsplit", pct + "%");
+      try { const s = localStorage.getItem("rcv-qsplit"); if (s) apply(parseFloat(s)); } catch {}
+      let dragging = false;
+      rz.addEventListener("pointerdown", (e) => { dragging = true; rz.setPointerCapture(e.pointerId); e.preventDefault(); });
+      rz.addEventListener("pointermove", (e) => {
+        if (!dragging) return;
+        const rect = wrap.getBoundingClientRect();
+        let pct = ((e.clientX - rect.left) / rect.width) * 100;
+        pct = Math.max(30, Math.min(80, pct));
+        apply(pct);
+        try { localStorage.setItem("rcv-qsplit", pct.toFixed(1)); } catch {}
+      });
+      const end = (e) => { if (dragging) { dragging = false; try { rz.releasePointerCapture(e.pointerId); } catch {} } };
+      rz.addEventListener("pointerup", end);
+      rz.addEventListener("pointercancel", end);
+    })();
   </script>
 </body>
 </html>

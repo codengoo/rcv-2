@@ -81,9 +81,10 @@ function sanitizeAvatar(av) {
 function sanitizeQuestion(q) {
   if (!q || typeof q !== "object") return null;
   const text = typeof q.q === "string" ? q.q.slice(0, 500) : "";
-  if (!text) return null;
+  const img = typeof q.img === "string" ? q.img.slice(0, 2000) : "";
+  if (!text && !img) return null; // cho phép đề chỉ có ảnh
   const options = Array.isArray(q.options) ? q.options.slice(0, 8).map((o) => String(o).slice(0, 200)) : [];
-  return { q: text, options };
+  return { q: text, options, img };
 }
 
 function genCode() {
