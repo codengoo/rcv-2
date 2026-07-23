@@ -68,6 +68,7 @@
     #stage.qmode .qwrap {
       flex: 1 1 auto; min-height: 0;
       display: grid;
+      max-height: 100%;
       grid-template-columns: var(--qsplit, 60%) 20px minmax(0, 1fr);
       grid-template-rows: minmax(0, 1fr);   /* giới hạn chiều cao row -> đề dài thì .qpanel tự cuộn */
     }
@@ -560,7 +561,7 @@
     window.addEventListener("resize", () => { if (!$("answerModal").classList.contains("hidden")) fwResize(); });
     // ESC: ẩn modal đáp án + đồng bộ ngược lại Master (tắt reveal)
     document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && !$("answerModal").classList.contains("hidden")) {
+      if (e.key === "Backspace" && !$("answerModal").classList.contains("hidden")) {
         hideAnswerModal();
         socket.emit("viewer:hideAnswer");
       }
