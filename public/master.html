@@ -6,7 +6,7 @@
   <title>🔔 Master - Rung chuông vàng</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Mansalva&family=Shantell+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Shantell+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/style.css" />
   <style>
     .wrap { max-width: 900px; }
@@ -27,10 +27,21 @@
     /* Bố cục 2 panel */
     .room-body { display: flex; gap: 22px; align-items: flex-start; }
     .info-panel { flex: 0 0 44%; text-align: center; }
-    .players-panel { flex: 1 1 auto; min-width: 0; }
+    .players-panel {
+      flex: 1 1 auto; min-width: 0;
+      display: flex; flex-direction: column;
+      max-height: 90vh;              /* panel không vượt 90% chiều cao màn hình */
+    }
+    /* Danh sách dài -> cuộn nội bộ, ẩn thanh cuộn */
+    .players-panel .players {
+      flex: 1 1 auto; min-height: 0; overflow-y: auto;
+      scrollbar-width: none; -ms-overflow-style: none;
+    }
+    .players-panel .players::-webkit-scrollbar { width: 0; height: 0; display: none; }
     @media (max-width: 700px) {
-      .room-body { flex-direction: column; }
+      .room-body { flex-direction: column; align-items: stretch; }
       .info-panel { flex-basis: auto; width: 100%; }
+      .players-panel { width: 100%; max-height: none; }
     }
 
     /* Chế độ đang chơi: ẩn panel thông tin, người chơi chiếm toàn khung */
@@ -56,7 +67,7 @@
       box-shadow: 0 6px 18px rgba(90, 121, 168, .09);
     }
     .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
-    .panel-head h2 { font-family: "Mansalva", cursive; font-size: 22px; font-weight: 400; color: var(--ink); }
+    .panel-head h2 { font-family: "Shantell Sans", sans-serif; font-size: 20px; font-weight: 700; color: var(--ink); }
     .players { margin-top: 0; }
     .players li.off { opacity: .55; }
     .players li .pinfo { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; }
@@ -84,12 +95,14 @@
     button.copy-btn:active { transform: translateY(3px); box-shadow: 0 0 0 #4d86c4; }
     button.copy-btn.ok { background: var(--green); box-shadow: 0 3px 0 #52b082; }
 
-    .viewer-link {
-      display: inline-block; margin-top: 14px; padding: 10px 16px;
-      background: var(--blue-soft); color: var(--ink); border-radius: 12px;
-      font-weight: 700; font-size: 14px;
+    .head-actions { display: inline-flex; align-items: center; gap: 8px; }
+    .icon-btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 40px; height: 40px; border-radius: 11px; flex: 0 0 auto;
+      background: var(--blue-soft); color: var(--ink); font-size: 18px;
+      text-decoration: none;
     }
-    .viewer-link:hover { text-decoration: none; filter: brightness(.97); }
+    .icon-btn:hover { text-decoration: none; filter: brightness(.96); }
 
     button.mini {
       width: auto; margin: 0; padding: 9px 14px; font-size: 14px;
@@ -148,16 +161,18 @@
           <div id="infoPanel" class="panel info-panel">
             <div class="panel-head">
               <h2>🏠 Thông tin phòng</h2>
-              <button id="infoCloseBtn" class="mini info-close">✕</button>
+              <span class="head-actions">
+                <a id="viewerLink" href="#" target="_blank" class="icon-btn" title="Mở màn chiếu cho khán giả">📺</a>
+                <button id="infoCloseBtn" class="mini info-close">✕</button>
+              </span>
             </div>
             <img id="qrImg" alt="QR tham gia phòng"
                  style="display:block;width:180px;height:180px;margin:4px auto 6px;border-radius:18px;border:3px solid #f0e8d4;background:#fffdf7;padding:6px;" />
             <div class="hint">📱 Quét mã QR để vào phòng ngay</div>
             <div class="join-row">
               <span class="join-link" id="joinUrl"></span>
-              <button id="copyBtn" class="copy-btn" title="Sao chép link phòng">📋 Copy</button>
+              <button id="copyBtn" class="copy-btn" title="Sao chép link phòng">Copy</button>
             </div>
-            <a id="viewerLink" href="#" target="_blank" class="viewer-link">📺 Mở màn chiếu cho khán giả</a>
             <button id="startBtnEntry" class="green">Bắt đầu ▶</button>
           </div>
 
@@ -211,7 +226,7 @@
       }
       const b = $("copyBtn");
       b.textContent = "✓ Đã copy"; b.classList.add("ok");
-      setTimeout(() => { b.textContent = "📋 Copy"; b.classList.remove("ok"); }, 1400);
+      setTimeout(() => { b.textContent = "Copy"; b.classList.remove("ok"); }, 1400);
     };
 
     const doStart = () => {

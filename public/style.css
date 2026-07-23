@@ -58,7 +58,7 @@ body::after {
 }
 
 h1 {
-  font-family: "Mansalva", system-ui, cursive;
+  font-family: "Shantell Sans", system-ui, sans-serif;
   font-weight: 800;
   font-size: 26px;
   line-height: 1.15;
@@ -99,7 +99,7 @@ input:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 4px va
 button {
   width: 100%;
   padding: 14px;
-  font-family: "Mansalva", cursive;
+  font-family: "Shantell Sans", sans-serif;
   font-size: 17px;
   font-weight: 700;
   border: none;
@@ -120,7 +120,7 @@ button.ghost { background: #fff; color: var(--ink); border: 2px solid var(--line
 button.ghost:active { box-shadow: 0 1px 0 #ece3cd; }
 
 .code-badge {
-  font-family: "Mansalva", cursive;
+  font-family: "Shantell Sans", sans-serif;
   font-size: 44px;
   font-weight: 800;
   letter-spacing: 10px;
@@ -151,7 +151,7 @@ button.ghost:active { box-shadow: 0 1px 0 #ece3cd; }
 .stage {
   height: 230px; border-radius: 24px; display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 8px;
-  font-family: "Mansalva", cursive;
+  font-family: "Shantell Sans", sans-serif;
   font-size: 20px; font-weight: 700; text-align: center; user-select: none;
   transition: background .12s, transform .12s;
   border: 3px dashed var(--line); background: #fffdf7;
@@ -170,7 +170,7 @@ button.ghost:active { box-shadow: 0 1px 0 #ece3cd; }
 .msg { text-align: center; margin-top: 14px; font-size: 15px; min-height: 22px; font-weight: 600; color: var(--ink-soft); }
 .hidden { display: none; }
 .status { font-size: 13px; color: var(--ink-soft); text-align: center; margin-top: 14px; font-weight: 500; }
-.reaction { font-family: "Mansalva", cursive; font-size: 38px; font-weight: 800; text-align: center; margin: 6px 0; color: var(--ink); }
+.reaction { font-family: "Shantell Sans", sans-serif; font-size: 38px; font-weight: 800; text-align: center; margin: 6px 0; color: var(--ink); }
 .avatar {
   display: inline-flex; align-items: center; justify-content: center;
   border-radius: 50%; flex: 0 0 auto; line-height: 1;
