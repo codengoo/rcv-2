@@ -4,6 +4,7 @@ import { Server } from "socket.io";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import { networkInterfaces } from "os";
+import { existsSync, readFileSync } from "fs";
 import QRCode from "qrcode";
 
 // Khi đóng gói bằng pkg (.exe): đọc thư mục public đặt CẠNH file exe (chỉnh sửa được).
@@ -11,6 +12,23 @@ import QRCode from "qrcode";
 const ROOT_DIR = process.pkg
   ? dirname(process.execPath)
   : dirname(fileURLToPath(import.meta.url));
+
+// Đọc file .env đặt cạnh mã nguồn (dev) hoặc cạnh file exe (khi đóng gói pkg).
+// Biến đã có sẵn trong môi trường luôn được ưu tiên hơn giá trị trong .env.
+function loadEnvFile(path) {
+  if (!existsSync(path)) return;
+  for (const raw of readFileSync(path, "utf8").split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line || line.startsWith("#")) continue;
+    const eq = line.indexOf("=");
+    if (eq < 1) continue;
+    const key = line.slice(0, eq).trim();
+    let value = line.slice(eq + 1).trim();
+    if (/^(".*"|'.*')$/s.test(value)) value = value.slice(1, -1);
+    if (process.env[key] === undefined) process.env[key] = value;
+  }
+}
+loadEnvFile(join(ROOT_DIR, ".env"));
 
 const app = express();
 const httpServer = createServer(app);
@@ -58,7 +76,8 @@ function getLanIP() {
   return { best: candidates[0]?.address || "localhost", all: candidates.map((c) => c.address) };
 }
 const { best: LAN_IP, all: ALL_IPS } = getLanIP();
-const BASE_URL = `http://${LAN_IP}:${PORT}`;
+// PUBLIC_URL=https://rcv.nghiacn.cloud khi chạy qua tunnel (Cloudflare/ngrok) để QR trỏ ra ngoài internet.
+const BASE_URL = (process.env.PUBLIC_URL || `http://${LAN_IP}:${PORT}`).replace(/\/+$/, "");
 
 // Avatar dễ thương kiểu Kahoot: con vật + nền màu rực rỡ
 const ANIMALS = ["🐼","🐰","🦊","🐶","🐱","🐵","🐸","🐷","🐨","🐯","🦁","🐮","🐔","🦄","🐧","🦉","🐢","🐝","🦋","🐳","🐬","🦕","🦖","🐙","🦈","🐴","🐗","🐭","🐹","🦝","🦥","🦦","🦔","🐺","🦩","🦚","🐊","🦒"];
