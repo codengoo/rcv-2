@@ -10,6 +10,10 @@
   <link rel="stylesheet" href="/style.css" />
   <style>
     .wrap { max-width: 900px; }
+    /* Khung card không vượt 90% chiều cao màn hình; nội dung dài -> cuộn trong danh sách người chơi */
+    .card { max-height: 90vh; display: flex; flex-direction: column; }
+    .card > h1 { align-self: flex-start; }   /* giữ gạch chân đúng bề rộng chữ */
+    #room:not(.hidden) { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
 
     /* Thanh điều khiển — chỉ hiện khi đang chơi (gamemode) */
     .controls { margin: 4px 0 16px; }
@@ -25,14 +29,13 @@
     .info-close { display: none; }
 
     /* Bố cục 2 panel */
-    .room-body { display: flex; gap: 22px; align-items: flex-start; }
-    .info-panel { flex: 0 0 44%; text-align: center; }
+    .room-body { display: flex; gap: 22px; align-items: stretch; flex: 1 1 auto; min-height: 0; margin-top: 8px; }
+    .info-panel { flex: 0 0 44%; text-align: center; align-self: flex-start; }
     .players-panel {
-      flex: 1 1 auto; min-width: 0;
+      flex: 1 1 auto; min-width: 0; min-height: 0;
       display: flex; flex-direction: column;
-      max-height: 90vh;              /* panel không vượt 90% chiều cao màn hình */
     }
-    /* Danh sách dài -> cuộn nội bộ, ẩn thanh cuộn */
+    /* Danh sách dài -> chỉ cuộn trong mục người chơi, ẩn thanh cuộn */
     .players-panel .players {
       flex: 1 1 auto; min-height: 0; overflow-y: auto;
       scrollbar-width: none; -ms-overflow-style: none;
@@ -40,8 +43,8 @@
     .players-panel .players::-webkit-scrollbar { width: 0; height: 0; display: none; }
     @media (max-width: 700px) {
       .room-body { flex-direction: column; align-items: stretch; }
-      .info-panel { flex-basis: auto; width: 100%; }
-      .players-panel { width: 100%; max-height: none; }
+      .info-panel { flex-basis: auto; width: 100%; align-self: stretch; }
+      .players-panel { width: 100%; }
     }
 
     /* Chế độ đang chơi: ẩn panel thông tin, người chơi chiếm toàn khung */
