@@ -81,11 +81,14 @@
         gap: 22px;
       }
       #room.gamemode > .controls {
-        display: flex; flex-direction: column; justify-content: center;
+        display: flex; flex-direction: column;
         margin: 0; padding: 24px; text-align: center;
         background: #fffdf7; border: 2px solid var(--line);
         border-radius: 20px; box-shadow: 0 6px 18px rgba(90, 121, 168, .09);
       }
+      /* Thông báo + đồng hồ dồn lên giữa-trên, nút hành động ghim đáy panel */
+      #room.gamemode > .controls > .msg { margin-top: auto; }
+      #room.gamemode > .controls > button { margin-top: auto; }
       #room.gamemode > .room-body { margin-top: 0; }
     }
 

@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Shantell+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
   <link rel="stylesheet" href="/style.css" />
   <!-- PWA: mở full màn hình khi thêm vào MH chính (iPhone/iPad + Android) -->
   <link rel="manifest" href="/manifest.webmanifest" />
@@ -51,7 +52,9 @@
       display: grid;
       /* rộng hơn để chứa đủ tên tối đa 20 ký tự */
       grid-template-columns: repeat(auto-fill, minmax(clamp(240px, 23vw, 360px), 1fr));
-      gap: clamp(12px, 1.4vw, 24px);
+      /* giãn cách dọc lớn hơn giãn cách ngang */
+      row-gap: clamp(26px, 3.2vw, 52px);
+      column-gap: clamp(12px, 1.4vw, 24px);
     }
     /* Thẻ người chơi: style giống nút bấm — nền màu đặc + bóng đáy 3D */
     .pcard {
@@ -72,9 +75,12 @@
     }
     .pcard .rank {
       position: absolute; top: -14px; left: -10px;
-      font-size: clamp(30px, 3vw, 52px); line-height: 1;
-      filter: drop-shadow(0 2px 3px rgba(0,0,0,.15));
+      font-size: clamp(28px, 2.8vw, 46px); line-height: 1;
+      filter: drop-shadow(0 2px 3px rgba(0,0,0,.2));
     }
+    .pcard .rank.gold { color: #f4b73f; }
+    .pcard .rank.silver { color: #a9b4c4; }
+    .pcard .rank.bronze { color: #cd7f4b; }
     .pcard .pname {
       font-weight: 700; font-size: clamp(22px, 2.6vw, 44px); color: var(--ink);
       max-width: 100%; line-height: 1.12; text-align: center;
@@ -121,7 +127,7 @@
   </style>
 </head>
 <body>
-  <button id="fsBtn" class="fs-btn" title="Toàn màn hình" aria-label="Toàn màn hình">⛶</button>
+  <button id="fsBtn" class="fs-btn" title="Toàn màn hình" aria-label="Toàn màn hình"><i class="fa-solid fa-expand"></i></button>
   <script>
     (function () {
       var b = document.getElementById("fsBtn");
@@ -139,12 +145,12 @@
 
   <!-- Nhập mã (fallback) -->
   <div class="card" id="enter">
-    <h1 class="underline">📺 Màn chiếu</h1>
+    <h1 class="underline"><i class="fa-solid fa-tv"></i> Màn chiếu</h1>
     <p class="sub">Nhập mã phòng để mở màn chiếu cho khán giả.</p>
     <label>Mã phòng</label>
     <input id="codeInput" placeholder="ABCD" maxlength="4" autocapitalize="characters"
            style="text-transform:uppercase;letter-spacing:6px;font-weight:700;text-align:center;font-size:24px;" />
-    <button id="enterBtn">Mở màn chiếu 📺</button>
+    <button id="enterBtn"><i class="fa-solid fa-tv"></i> Mở màn chiếu</button>
     <div class="msg" id="enterMsg"></div>
   </div>
 
@@ -152,7 +158,7 @@
   <div id="stage">
     <div class="vhead">
       <div class="vtimer" id="vtimer"></div>
-      <div class="vbanner wait" id="banner">⏳ Chờ hiệu lệnh…</div>
+      <div class="vbanner wait" id="banner"><i class="fa-regular fa-hourglass-half"></i> Chờ hiệu lệnh…</div>
     </div>
     <div class="grid" id="grid"></div>
     <div class="vempty hidden" id="empty">Chưa có thí sinh nào tham gia…</div>
@@ -173,7 +179,7 @@
     function startElapsed() {
       elapsedStart = performance.now();
       clearInterval(elapsedTimer);
-      const tick = () => { $("vtimer").textContent = "⏱ " + fmtElapsed(performance.now() - elapsedStart); };
+      const tick = () => { $("vtimer").innerHTML = '<i class="fa-solid fa-stopwatch"></i> ' + fmtElapsed(performance.now() - elapsedStart); };
       tick();
       elapsedTimer = setInterval(tick, 100);
       $("vtimer").style.display = "block";
@@ -205,7 +211,7 @@
     });
     socket.on("room:closed", () => {
       $("banner").className = "vbanner result";
-      $("banner").textContent = "🚪 Phòng đã đóng";
+      $("banner").innerHTML = '<i class="fa-solid fa-door-open"></i> Phòng đã đóng';
       $("grid").innerHTML = "";
       cardEls.clear(); // đồng bộ map node để không dựng lại thẻ cũ
       stopElapsed(true);
@@ -221,10 +227,13 @@
       let medal = "", body = "";
       if (p.disabled) {
         cls += " off";
-        body = '<div class="pstate">🔒 Đã khóa</div>';
+        body = '<div class="pstate"><i class="fa-solid fa-lock"></i> Đã khóa</div>';
       } else if (p.buzzed) {
         cls += isWin ? " win" : " buzzed";
-        medal = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : "";
+        if (rank <= 3) {
+          const mc = rank === 1 ? "gold" : rank === 2 ? "silver" : "bronze";
+          medal = `<div class="rank ${mc}"><i class="fa-solid fa-medal"></i></div>`;
+        }
         body = `<div class="ptime" title="${p.reaction} ms">${secs(p.reaction)}</div>` +
                (rank > 3 ? `<div class="pstate">Hạng ${rank}</div>` : "");
       } else {
@@ -233,7 +242,7 @@
       const name = escapeHtml(p.name);
       const av = p.avatar ? `<span class="avatar pav" style="--av:${p.avatar.color};background:${p.avatar.color}">${p.avatar.emoji}</span>` : "";
       el.className = cls;
-      el.innerHTML = `${medal ? `<div class="rank">${medal}</div>` : ""}${av}<div class="pname">${name}</div>${body}`;
+      el.innerHTML = `${medal}${av}<div class="pname">${name}</div>${body}`;
     }
 
     function render(phase, players) {
@@ -248,9 +257,9 @@
 
       // Banner
       const b = $("banner");
-      if (phase === "SIGNAL") { b.className = "vbanner signal"; b.textContent = "🟢 BẤM NHANH!"; }
-      else if (ranked.length) { b.className = "vbanner result"; b.textContent = "🏆 KẾT QUẢ"; }
-      else { b.className = "vbanner wait"; b.textContent = "⏳ Chờ hiệu lệnh…"; }
+      if (phase === "SIGNAL") { b.className = "vbanner signal"; b.innerHTML = '<i class="fa-solid fa-bolt"></i> BẤM NHANH!'; }
+      else if (ranked.length) { b.className = "vbanner result"; b.innerHTML = '<i class="fa-solid fa-trophy"></i> KẾT QUẢ'; }
+      else { b.className = "vbanner wait"; b.innerHTML = '<i class="fa-regular fa-hourglass-half"></i> Chờ hiệu lệnh…'; }
 
       // Sắp xếp thẻ: đã bấm (theo hạng) -> đang chờ -> bị khóa
       const order = [...players].sort((a, b) => {
