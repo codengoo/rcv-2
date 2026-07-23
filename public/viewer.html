@@ -56,6 +56,52 @@
       row-gap: clamp(26px, 3.2vw, 52px);
       column-gap: clamp(12px, 1.4vw, 24px);
     }
+
+    /* ===== Layout ĐỀ BÀI: đề bên trái (lớn) + người chơi bên phải ===== */
+    .qwrap { display: block; }
+    .qpanel { display: none; }
+    #stage.qmode .qwrap {
+      display: grid;
+      grid-template-columns: minmax(0, 1.7fr) minmax(280px, 1fr);
+      gap: clamp(18px, 2vw, 36px);
+      align-items: start;
+    }
+    /* Panel đề: giữ style card, chỉ chỉnh kích thước */
+    #stage.qmode .qpanel {
+      display: flex; flex-direction: column; gap: clamp(14px, 1.6vw, 26px);
+      background: var(--paper); border: 3px solid var(--line); border-radius: 26px;
+      box-shadow: 0 8px 0 #e2dac6; padding: clamp(20px, 2.4vw, 46px);
+    }
+    .qpanel .qtext {
+      font-family: "Shantell Sans", sans-serif; font-weight: 700;
+      font-size: clamp(28px, 3.4vw, 60px); line-height: 1.25; color: var(--ink);
+    }
+    .qpanel .qopts { list-style: none; display: grid; gap: clamp(10px, 1.2vw, 18px); }
+    .qpanel .qopt {
+      display: flex; align-items: center; gap: 14px;
+      background: var(--blue-soft); border: 2px solid #bcd6f2; border-radius: 16px;
+      box-shadow: 0 5px 0 #bcd6f2;
+      padding: clamp(12px, 1.2vw, 20px) clamp(16px, 1.6vw, 26px);
+      font-weight: 700; font-size: clamp(20px, 2.2vw, 38px); color: var(--ink);
+    }
+    .qpanel .qopt-key {
+      flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+      width: 1.7em; height: 1.7em; border-radius: 12px;
+      background: var(--gold); color: #6b4a06; font-weight: 800;
+    }
+    /* Cột người chơi: giữ style card, thu nhỏ kích thước cho vừa */
+    #stage.qmode .grid {
+      grid-template-columns: repeat(auto-fill, minmax(clamp(150px, 12vw, 210px), 1fr));
+      row-gap: clamp(18px, 2vw, 30px);
+    }
+    #stage.qmode .pcard { min-height: clamp(90px, 8vw, 130px); padding: clamp(10px, 1vw, 18px); }
+    #stage.qmode .pcard .pav {
+      width: clamp(46px, 4.4vw, 76px); height: clamp(46px, 4.4vw, 76px); font-size: clamp(24px, 2.6vw, 42px);
+    }
+    #stage.qmode .pcard .pname { font-size: clamp(16px, 1.5vw, 26px); }
+    #stage.qmode .pcard .ptime { font-size: clamp(15px, 1.6vw, 26px); padding: 3px 10px; }
+    #stage.qmode .pcard .pstate { font-size: clamp(13px, 1.1vw, 18px); }
+    #stage.qmode .pcard .rank { font-size: clamp(22px, 2vw, 34px); top: -12px; left: -8px; }
     /* Thẻ người chơi: style giống nút bấm — nền màu đặc + bóng đáy 3D */
     .pcard {
       background: var(--blue-soft); border: 3px solid #bcd6f2; border-radius: 22px;
@@ -160,7 +206,10 @@
       <div class="vtimer" id="vtimer"></div>
       <div class="vbanner wait" id="banner"><i class="fa-regular fa-hourglass-half"></i> Chờ hiệu lệnh…</div>
     </div>
-    <div class="grid" id="grid"></div>
+    <div class="qwrap">
+      <div class="qpanel" id="qpanel"></div>
+      <div class="grid" id="grid"></div>
+    </div>
     <div class="vempty hidden" id="empty">Chưa có thí sinh nào tham gia…</div>
   </div>
 
@@ -203,6 +252,7 @@
         if (!res?.ok) { $("enterMsg").textContent = res?.error || "Không vào được phòng."; return; }
         document.body.classList.add("live");
         render(res.phase, res.players);
+        applyQuestion(res.question);
       });
     }
 
@@ -215,6 +265,7 @@
       $("grid").innerHTML = "";
       cardEls.clear(); // đồng bộ map node để không dựng lại thẻ cũ
       stopElapsed(true);
+      applyQuestion(null); // thoát layout đề bài
     });
 
     // Giữ node theo id để tái sử dụng -> cho phép hoạt ảnh FLIP khi đổi vị trí
@@ -318,6 +369,20 @@
     }
     // Hiển thị theo giây (2 số lẻ); hover ra ms qua thuộc tính title.
     function secs(ms) { return (ms / 1000).toFixed(2) + " s"; }
+
+    // ---- Đề bài: layout đề trái + người chơi phải ----
+    function renderQPanel(q) {
+      const opts = (q.options || []).map((o, i) =>
+        `<li class="qopt"><span class="qopt-key">${String.fromCharCode(65 + i)}</span><span>${escapeHtml(o)}</span></li>`
+      ).join("");
+      $("qpanel").innerHTML = `<div class="qtext">${escapeHtml(q.q)}</div>` + (opts ? `<ul class="qopts">${opts}</ul>` : "");
+    }
+    function applyQuestion(q) {
+      const on = !!(q && q.q);
+      $("stage").classList.toggle("qmode", on);
+      if (on) renderQPanel(q);
+    }
+    socket.on("room:question", ({ question }) => applyQuestion(question));
   </script>
 </body>
 </html>

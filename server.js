@@ -15,6 +15,7 @@ const io = new Server(httpServer);
 app.use(express.static(join(__dirname, "public")));
 
 const PORT = process.env.PORT || 3000;
+const MASTER_GRACE_MS = 60000; // giữ phòng 60s khi master rớt để reload/kết nối lại
 
 /**
  * rooms: Map<roomCode, Room>
@@ -76,6 +77,15 @@ function sanitizeAvatar(av) {
   return color && emoji ? { color, emoji } : null;
 }
 
+// Đề bài do Master gửi lên (server chỉ lưu & relay). Sanitize kích thước.
+function sanitizeQuestion(q) {
+  if (!q || typeof q !== "object") return null;
+  const text = typeof q.q === "string" ? q.q.slice(0, 500) : "";
+  if (!text) return null;
+  const options = Array.isArray(q.options) ? q.options.slice(0, 8).map((o) => String(o).slice(0, 200)) : [];
+  return { q: text, options };
+}
+
 function genCode() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // bỏ ký tự dễ nhầm (I,O,0,1)
   let code;
@@ -134,7 +144,7 @@ io.on("connection", (socket) => {
   // ---- MASTER ----
   socket.on("master:create", async (_, cb) => {
     const code = genCode();
-    const room = { code, masterId: socket.id, players: new Map(), phase: "LOBBY" };
+    const room = { code, masterId: socket.id, players: new Map(), phase: "LOBBY", question: null };
     rooms.set(code, room);
     socket.join(code);
     socket.data = { role: "master", code };
@@ -146,6 +156,28 @@ io.on("connection", (socket) => {
     } catch { /* bỏ qua nếu tạo QR lỗi */ }
 
     cb?.({ ok: true, code, joinUrl, qr });
+    broadcastRoom(room);
+  });
+
+  // Master tải lại trang / kết nối lại -> gắn lại làm chủ phòng cũ (không tạo phòng mới)
+  socket.on("master:reclaim", async ({ code } = {}, cb) => {
+    code = String(code || "").trim().toUpperCase();
+    const room = rooms.get(code);
+    if (!room) return cb?.({ ok: false, error: "Phòng không còn tồn tại" });
+
+    room.masterId = socket.id;
+    clearTimeout(room.graceTimer);
+    room.graceTimer = null;
+    socket.join(code);
+    socket.data = { role: "master", code };
+
+    const joinUrl = `${BASE_URL}/?code=${code}`;
+    let qr = null;
+    try {
+      qr = await QRCode.toDataURL(joinUrl, { margin: 1, width: 320, color: { dark: "#24487e", light: "#fffdf7" } });
+    } catch { /* bỏ qua nếu tạo QR lỗi */ }
+
+    cb?.({ ok: true, code, joinUrl, qr, phase: room.phase, players: publicPlayers(room), question: room.question });
     broadcastRoom(room);
   });
 
@@ -193,6 +225,14 @@ io.on("connection", (socket) => {
     if (room.phase === "SIGNAL" && allBuzzed(room)) endRound(room);
   });
 
+  // Chọn / ẩn đề bài hiển thị trên màn chiếu (Master điều khiển)
+  socket.on("master:setQuestion", ({ question } = {}) => {
+    const room = rooms.get(socket.data?.code);
+    if (!room || room.masterId !== socket.id) return;
+    room.question = question ? sanitizeQuestion(question) : null;
+    io.to(room.code).emit("room:question", { question: room.question });
+  });
+
   // Mở khóa quyền chơi cho tất cả
   socket.on("master:enableAll", () => {
     const room = rooms.get(socket.data?.code);
@@ -210,7 +250,7 @@ io.on("connection", (socket) => {
     if (!room) return cb?.({ ok: false, error: "Phòng không tồn tại" });
     socket.join(code);
     socket.data = { role: "viewer", code };
-    cb?.({ ok: true, code, phase: room.phase, players: publicPlayers(room) });
+    cb?.({ ok: true, code, phase: room.phase, players: publicPlayers(room), question: room.question });
   });
 
   // ---- CLIENT ----
@@ -251,8 +291,15 @@ io.on("connection", (socket) => {
     if (!room) return;
 
     if (room.masterId === socket.id) {
-      io.to(code).emit("room:closed");
-      rooms.delete(code);
+      // Không đóng ngay: giữ phòng 1 khoảng để master reload/kết nối lại rồi reclaim.
+      room.masterId = null;
+      clearTimeout(room.graceTimer);
+      room.graceTimer = setTimeout(() => {
+        if (rooms.get(code) === room && room.masterId === null) {
+          io.to(code).emit("room:closed");
+          rooms.delete(code);
+        }
+      }, MASTER_GRACE_MS);
       return;
     }
 

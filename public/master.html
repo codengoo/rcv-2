@@ -40,6 +40,24 @@
       display: none; font-family: "Shantell Sans", sans-serif; font-weight: 800;
       font-size: 34px; color: var(--ink); margin: 2px 0 6px; text-align: center;
     }
+    /* Thanh điều khiển đề bài */
+    .qbar {
+      background: #fffdf7; border: 2px solid var(--line); border-radius: 16px;
+      padding: 12px; margin: 6px 0; text-align: left;
+    }
+    .qbar-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+    .qbar-label { font-weight: 700; color: var(--ink); font-size: 14px; }
+    .qbar-count { font-size: 13px; font-weight: 700; color: var(--ink-soft); }
+    .qbar-preview {
+      font-size: 14px; font-weight: 600; color: var(--ink-soft); line-height: 1.3;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+      min-height: 36px; margin-bottom: 8px;
+    }
+    .qbar-nav { display: flex; align-items: center; gap: 8px; }
+    .qbar-nav #qToggle { flex: 1 1 auto; }
+    button.ghost-mini { flex: 0 0 auto; background: #fff; color: var(--ink); border: 2px solid var(--line); box-shadow: 0 3px 0 #ece3cd; padding: 9px 12px; }
+    button.ghost-mini:active { box-shadow: 0 1px 0 #ece3cd; }
+    #qToggle.on { background: var(--green); color: #fff; box-shadow: 0 3px 0 #52b082; }
     #room:not(.gamemode) .controls { display: none; }
     #startBtnEntry { margin-top: 14px; }
     #room.gamemode #startBtnEntry { display: none; }
@@ -216,6 +234,21 @@
         <div class="controls">
           <div id="phaseBox" class="msg"></div>
           <div id="elapsed" class="elapsed"></div>
+
+          <!-- Điều khiển đề bài -->
+          <div class="qbar">
+            <div class="qbar-top">
+              <span class="qbar-label"><i class="fa-solid fa-list-check"></i> Đề bài</span>
+              <span class="qbar-count" id="qCount">–</span>
+            </div>
+            <div class="qbar-preview" id="qPreview">Chưa có đề</div>
+            <div class="qbar-nav">
+              <button id="qPrev" class="mini ghost-mini" title="Đề trước"><i class="fa-solid fa-chevron-left"></i></button>
+              <button id="qToggle" class="mini"><i class="fa-solid fa-tv"></i> Chiếu đề</button>
+              <button id="qNext" class="mini ghost-mini" title="Đề sau"><i class="fa-solid fa-chevron-right"></i></button>
+            </div>
+          </div>
+
           <button id="startBtn" class="green"><i class="fa-solid fa-play"></i> Bắt đầu</button>
           <button id="stopBtn" class="red hidden"><i class="fa-solid fa-stop"></i> Dừng &amp; công bố kết quả</button>
           <button id="resetBtn" class="ghost hidden"><i class="fa-solid fa-rotate-right"></i> Chơi lại</button>
@@ -264,6 +297,7 @@
     let lastPlayers = []; // danh sách người chơi mới nhất (để refresh controls khi vào gamemode)
     let winnerId = null; // người thắng vòng hiện tại (để tô màu trong danh sách)
     let joinUrl = "";
+    let myRoomCode = "";      // mã phòng đang giữ (để reclaim khi reload/kết nối lại)
     let resultsShown = false; // đã chạy animation tổng sắp cho vòng này chưa
 
     const $ = (id) => document.getElementById(id);
@@ -288,18 +322,80 @@
       if (hide) $("elapsed").style.display = "none";
     }
 
+    // ---- Đề bài (tạm thời mock) ----
+    const QUESTIONS = [
+      { q: "Thủ đô của Việt Nam là thành phố nào?", options: ["Hà Nội", "TP. Hồ Chí Minh", "Đà Nẵng", "Huế"] },
+      { q: "Kết quả của phép tính 7 × 8 bằng bao nhiêu?", options: ["54", "56", "64", "48"] },
+      { q: "Hành tinh nào gần Mặt Trời nhất?", options: ["Sao Kim", "Trái Đất", "Sao Thủy", "Sao Hỏa"] },
+      { q: "Đại dương nào lớn nhất thế giới?", options: ["Đại Tây Dương", "Ấn Độ Dương", "Bắc Băng Dương", "Thái Bình Dương"] },
+      { q: "Tác giả của Truyện Kiều là ai?", options: ["Nguyễn Du", "Hồ Xuân Hương", "Nguyễn Trãi", "Xuân Diệu"] },
+    ];
+    let qIndex = 0;
+    let qShown = false; // đề đang được chiếu lên viewer hay không
+
+    function updateQBar() {
+      $("qCount").textContent = (qIndex + 1) + "/" + QUESTIONS.length;
+      $("qPreview").textContent = QUESTIONS[qIndex].q;
+      const t = $("qToggle");
+      t.classList.toggle("on", qShown);
+      t.innerHTML = qShown
+        ? '<i class="fa-solid fa-eye-slash"></i> Ẩn đề'
+        : '<i class="fa-solid fa-tv"></i> Chiếu đề';
+    }
+    function pushQuestion() {
+      socket.emit("master:setQuestion", { question: qShown ? QUESTIONS[qIndex] : null });
+    }
+    $("qPrev").onclick = () => { qIndex = (qIndex - 1 + QUESTIONS.length) % QUESTIONS.length; updateQBar(); if (qShown) pushQuestion(); };
+    $("qNext").onclick = () => { qIndex = (qIndex + 1) % QUESTIONS.length; updateQBar(); if (qShown) pushQuestion(); };
+    $("qToggle").onclick = () => { qShown = !qShown; updateQBar(); pushQuestion(); };
+    updateQBar();
+
+    // Dựng UI phòng từ kết quả create/reclaim, và ghi ?code vào URL để reload vào lại được
+    function enterRoom(res) {
+      myRoomCode = res.code;
+      $("setup").classList.add("hidden");
+      $("room").classList.remove("hidden");
+      if (res.qr) $("qrImg").src = res.qr; else $("qrImg").style.display = "none";
+      joinUrl = res.joinUrl;
+      $("joinUrl").textContent = res.joinUrl;
+      $("viewerLink").href = "/viewer.html?code=" + res.code;
+      try { history.replaceState(null, "", "?code=" + res.code); } catch {}
+    }
+
     $("createBtn").onclick = () => {
-      socket.emit("master:create", null, (res) => {
-        if (res?.ok) {
-          $("setup").classList.add("hidden");
-          $("room").classList.remove("hidden");
-          if (res.qr) $("qrImg").src = res.qr; else $("qrImg").style.display = "none";
-          joinUrl = res.joinUrl;
-          $("joinUrl").textContent = res.joinUrl;
-          $("viewerLink").href = "/viewer.html?code=" + res.code;
-        }
-      });
+      socket.emit("master:create", null, (res) => { if (res?.ok) enterRoom(res); });
     };
+
+    // Khôi phục phòng cũ từ ?code khi tải lại trang
+    const urlCode = new URLSearchParams(location.search).get("code");
+    if (urlCode) {
+      socket.emit("master:reclaim", { code: urlCode }, (res) => {
+        if (!res?.ok) { // phòng không còn -> bỏ param, về màn tạo phòng
+          try { history.replaceState(null, "", location.pathname); } catch {}
+          return;
+        }
+        enterRoom(res);
+        // Khôi phục trạng thái đề bài đang chiếu
+        if (res.question) {
+          const idx = QUESTIONS.findIndex((x) => x.q === res.question.q);
+          if (idx >= 0) qIndex = idx;
+          qShown = true; updateQBar();
+        }
+        // Khôi phục người thắng (reload lúc đang xem kết quả sẽ không nhận game:results)
+        const buzzed = (res.players || []).filter((p) => p.buzzed && !p.disabled);
+        if (res.phase !== "SIGNAL" && buzzed.length) {
+          winnerId = buzzed.reduce((a, b) => (a.reaction <= b.reaction ? a : b)).id;
+        }
+        // Nếu phòng đang chơi/đã có kết quả -> khôi phục layout gamemode
+        const inPlay = res.phase === "SIGNAL" || (res.players || []).some((p) => p.buzzed);
+        if (inPlay) { $("room").classList.add("gamemode"); $("infoBtn").classList.add("show"); }
+      });
+    }
+
+    // Kết nối lại (socket mới sau khi rớt) -> gắn lại làm master của phòng đang giữ
+    socket.on("connect", () => {
+      if (myRoomCode) socket.emit("master:reclaim", { code: myRoomCode }, () => {});
+    });
 
     $("copyBtn").onclick = async () => {
       if (!joinUrl) return;
