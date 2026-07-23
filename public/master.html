@@ -817,17 +817,19 @@
       }
       $("qPrev").onclick = () => {
         if (!QUESTIONS.length) return;
+        const wasShown = qShown;
         qIndex = (qIndex - 1 + QUESTIONS.length) % QUESTIONS.length;
-        qReveal = false;
+        qShown = false; qReveal = false;   // đổi câu -> tự ẩn đề trên viewer
         updateQBar();
-        if (qShown) pushQuestion();
+        if (wasShown) pushQuestion();
       };
       $("qNext").onclick = () => {
         if (!QUESTIONS.length) return;
+        const wasShown = qShown;
         qIndex = (qIndex + 1) % QUESTIONS.length;
-        qReveal = false;
+        qShown = false; qReveal = false;   // đổi câu -> tự ẩn đề trên viewer
         updateQBar();
-        if (qShown) pushQuestion();
+        if (wasShown) pushQuestion();
       };
       $("qToggle").onclick = () => {
         if (!QUESTIONS.length) return;
