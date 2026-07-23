@@ -28,10 +28,16 @@
     body.live #enter { display: none; }
 
     .vhead {
-      display: flex; align-items: center; justify-content: flex-end;
+      display: flex; align-items: center;
       gap: 16px; margin-bottom: 1.6vw; flex-wrap: wrap; padding-right: 58px;
     }
     .vtitle { font-family: "Shantell Sans", sans-serif; font-weight: 700; font-size: clamp(30px, 4vw, 60px); color: var(--ink); }
+    /* Đồng hồ thời gian đã trôi qua (ẩn tới khi ra hiệu) */
+    .vtimer {
+      display: none; font-family: "Shantell Sans", sans-serif; font-weight: 800;
+      font-size: clamp(30px, 3.6vw, 58px); color: var(--ink); line-height: 1;
+    }
+    .vbanner { margin-left: auto; }   /* luôn đẩy banner về bên phải */
     .vbanner {
       font-family: "Shantell Sans", sans-serif; font-weight: 700; font-size: clamp(22px, 3vw, 44px);
       padding: 8px 24px; border-radius: 999px; white-space: nowrap;
@@ -145,6 +151,7 @@
   <!-- Màn chiếu -->
   <div id="stage">
     <div class="vhead">
+      <div class="vtimer" id="vtimer"></div>
       <div class="vbanner wait" id="banner">⏳ Chờ hiệu lệnh…</div>
     </div>
     <div class="grid" id="grid"></div>
@@ -155,6 +162,26 @@
   <script>
     const socket = io();
     const $ = (id) => document.getElementById(id);
+
+    // ---- Đồng hồ thời gian đã trôi qua (từ lúc ra hiệu) ----
+    let elapsedTimer = null, elapsedStart = 0, vPrevPhase = null;
+    function fmtElapsed(ms) {
+      const s = ms / 1000;
+      if (s < 60) return s.toFixed(1) + "s";
+      return Math.floor(s / 60) + ":" + String(Math.floor(s % 60)).padStart(2, "0");
+    }
+    function startElapsed() {
+      elapsedStart = performance.now();
+      clearInterval(elapsedTimer);
+      const tick = () => { $("vtimer").textContent = "⏱ " + fmtElapsed(performance.now() - elapsedStart); };
+      tick();
+      elapsedTimer = setInterval(tick, 100);
+      $("vtimer").style.display = "block";
+    }
+    function stopElapsed(hide) {
+      clearInterval(elapsedTimer); elapsedTimer = null;
+      if (hide) $("vtimer").style.display = "none";
+    }
 
     $("codeInput").addEventListener("input", (e) => { e.target.value = e.target.value.toUpperCase(); });
     $("enterBtn").onclick = go;
@@ -181,6 +208,7 @@
       $("banner").textContent = "🚪 Phòng đã đóng";
       $("grid").innerHTML = "";
       cardEls.clear(); // đồng bộ map node để không dựng lại thẻ cũ
+      stopElapsed(true);
     });
 
     // Giữ node theo id để tái sử dụng -> cho phép hoạt ảnh FLIP khi đổi vị trí
@@ -209,6 +237,11 @@
     }
 
     function render(phase, players) {
+      // Đồng hồ: chạy khi vào SIGNAL, dừng (giữ số cuối) khi công bố kết quả
+      if (phase === "SIGNAL" && vPrevPhase !== "SIGNAL") startElapsed();
+      else if (phase !== "SIGNAL" && vPrevPhase === "SIGNAL") stopElapsed(false);
+      vPrevPhase = phase;
+
       // Xếp hạng: người đã bấm & không bị khóa, theo thời gian tăng dần
       const ranked = players.filter((p) => p.buzzed && !p.disabled).sort((a, b) => a.reaction - b.reaction);
       const rankOf = new Map(ranked.map((p, i) => [p.id, i + 1]));

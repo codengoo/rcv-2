@@ -35,6 +35,11 @@
     .controls { margin: 4px 0 16px; }
     .controls .msg { margin: 8px 0; }
     .controls button { margin-top: 6px; }
+    /* Đồng hồ thời gian đã trôi qua (ẩn cho tới khi ra hiệu) */
+    .elapsed {
+      display: none; font-family: "Shantell Sans", sans-serif; font-weight: 800;
+      font-size: 34px; color: var(--ink); margin: 2px 0 6px; text-align: center;
+    }
     #room:not(.gamemode) .controls { display: none; }
     #startBtnEntry { margin-top: 14px; }
     #room.gamemode #startBtnEntry { display: none; }
@@ -65,6 +70,24 @@
 
     /* Chế độ đang chơi: ẩn panel thông tin, người chơi chiếm toàn khung */
     #room.gamemode .info-panel { display: none; }
+
+    /* Layout "sẵn sàng"/đang chơi trên màn rộng (>850px): chia 2 panel
+       — trái: điều khiển & thông tin, phải: danh sách người chơi. */
+    @media (min-width: 851px) {
+      #room.gamemode {
+        display: grid;
+        grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+        grid-template-rows: minmax(0, 1fr);
+        gap: 22px;
+      }
+      #room.gamemode > .controls {
+        display: flex; flex-direction: column; justify-content: center;
+        margin: 0; padding: 24px; text-align: center;
+        background: #fffdf7; border: 2px solid var(--line);
+        border-radius: 20px; box-shadow: 0 6px 18px rgba(90, 121, 168, .09);
+      }
+      #room.gamemode > .room-body { margin-top: 0; }
+    }
 
     /* Mở panel thông tin dưới dạng modal */
     #room.gamemode.info-open .info-panel {
@@ -189,6 +212,7 @@
         <!-- Thanh điều khiển: luôn hiển thị -->
         <div class="controls">
           <div id="phaseBox" class="msg"></div>
+          <div id="elapsed" class="elapsed"></div>
           <button id="startBtn" class="green"><i class="fa-solid fa-play"></i> Bắt đầu</button>
           <button id="stopBtn" class="red hidden"><i class="fa-solid fa-stop"></i> Dừng &amp; công bố kết quả</button>
           <button id="resetBtn" class="ghost hidden"><i class="fa-solid fa-rotate-right"></i> Chơi lại</button>
@@ -240,6 +264,26 @@
     let resultsShown = false; // đã chạy animation tổng sắp cho vòng này chưa
 
     const $ = (id) => document.getElementById(id);
+
+    // ---- Đồng hồ thời gian đã trôi qua (từ lúc ra hiệu) ----
+    let elapsedTimer = null, elapsedStart = 0;
+    function fmtElapsed(ms) {
+      const s = ms / 1000;
+      if (s < 60) return s.toFixed(1) + "s";
+      return Math.floor(s / 60) + ":" + String(Math.floor(s % 60)).padStart(2, "0");
+    }
+    function startElapsed() {
+      elapsedStart = performance.now();
+      clearInterval(elapsedTimer);
+      const tick = () => { $("elapsed").textContent = "⏱ " + fmtElapsed(performance.now() - elapsedStart); };
+      tick();
+      elapsedTimer = setInterval(tick, 100);
+      $("elapsed").style.display = "block";
+    }
+    function stopElapsed(hide) {
+      clearInterval(elapsedTimer); elapsedTimer = null;
+      if (hide) $("elapsed").style.display = "none";
+    }
 
     $("createBtn").onclick = () => {
       socket.emit("master:create", null, (res) => {
@@ -324,9 +368,13 @@
     }
 
     function renderRoom({ phase: p, players }) {
+      const prevPhase = phase;
       if (p === "SIGNAL") winnerId = null; // vòng mới -> bỏ đánh dấu người thắng cũ
       phase = p;
       lastPlayers = players;
+      // Đồng hồ: bắt đầu khi vào SIGNAL, dừng (giữ số cuối) khi công bố kết quả
+      if (p === "SIGNAL" && prevPhase !== "SIGNAL") startElapsed();
+      else if (p !== "SIGNAL" && prevPhase === "SIGNAL") stopElapsed(false);
       $("count").textContent = players.length;
       $("emptyHint").style.display = players.length ? "none" : "block";
 
@@ -365,7 +413,7 @@
     socket.on("room:update", renderRoom);
     // winnerId để tô màu người thắng; nút bấm do room:update (updateControls) quản lý
     socket.on("game:results", ({ winner }) => { winnerId = winner ? winner.id : null; });
-    socket.on("game:reset", () => { winnerId = null; });
+    socket.on("game:reset", () => { winnerId = null; stopElapsed(true); });
 
     function avatarHtml(av, size) {
       if (!av) return "";
