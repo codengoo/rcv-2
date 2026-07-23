@@ -94,6 +94,12 @@
       box-shadow: 0 3px 0 #c2d7f2;
     }
     .players li.off { opacity: .55; }
+    /* Animation khi công bố bảng tổng sắp (chỉ chạy lúc vào kết quả) */
+    @keyframes rowIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+    @keyframes winPop { 0% { opacity: 0; transform: scale(.9) translateY(16px); } 60% { opacity: 1; transform: scale(1.03); } 100% { transform: none; } }
+    .players-panel .players li.reveal { animation: rowIn .4s cubic-bezier(.2,.7,.2,1) both; }
+    .players-panel .players li.reveal.winner { animation: winPop .55s cubic-bezier(.2,.7,.2,1) both; }
+    @media (prefers-reduced-motion: reduce) { .players-panel .players li.reveal { animation: none; } }
     .players li .pinfo { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; }
     .players li.winner {
       background: linear-gradient(160deg, #fffdf7, var(--gold-soft));
@@ -231,6 +237,7 @@
     let lastPlayers = []; // danh sách người chơi mới nhất (để refresh controls khi vào gamemode)
     let winnerId = null; // người thắng vòng hiện tại (để tô màu trong danh sách)
     let joinUrl = "";
+    let resultsShown = false; // đã chạy animation tổng sắp cho vòng này chưa
 
     const $ = (id) => document.getElementById(id);
 
@@ -325,8 +332,13 @@
 
       // Ở trạng thái tổng sắp (đã có người bấm & không còn đang ra hiệu):
       // sắp theo thời gian bấm chuông — nhanh nhất lên đầu, ai chưa bấm xuống cuối.
+      const isResults = p !== "SIGNAL" && players.some((pl) => pl.buzzed);
+      // Chỉ chạy animation ĐÚNG LÚC lần đầu vào tổng sắp (không lặp lại mỗi lần cập nhật).
+      const animate = isResults && !resultsShown;
+      resultsShown = isResults;
+
       let list = players;
-      if (p !== "SIGNAL" && players.some((pl) => pl.buzzed)) {
+      if (isResults) {
         list = [...players].sort((a, b) => {
           if (a.buzzed !== b.buzzed) return a.buzzed ? -1 : 1;      // đã bấm lên trước
           if (a.buzzed && b.buzzed) return a.reaction - b.reaction; // ms nhỏ hơn lên trước
@@ -334,7 +346,7 @@
         });
       }
 
-      $("playerList").innerHTML = list.map((pl) => {
+      $("playerList").innerHTML = list.map((pl, i) => {
         const isWin = !pl.disabled && pl.id === winnerId;
         let tag;
         if (pl.disabled) tag = '<span class="tag foul"><i class="fa-solid fa-lock"></i> đã khóa</span>';
@@ -342,9 +354,10 @@
         else if (pl.buzzed) tag = `<span class="tag ok" title="${pl.reaction} ms">${secs(pl.reaction)}</span>`;
         else tag = '<span class="tag wait"><i class="fa-regular fa-clock"></i> chờ</span>';
         const btn = `<button class="row-btn ${pl.disabled ? "on" : ""}" data-id="${pl.id}"><i class="fa-solid ${pl.disabled ? "fa-lock-open" : "fa-lock"}"></i> ${pl.disabled ? "Mở khóa" : "Khóa"}</button>`;
-        const cls = (pl.disabled ? "off" : "") + (isWin ? " winner" : "");
+        const cls = (pl.disabled ? "off" : "") + (isWin ? " winner" : "") + (animate ? " reveal" : "");
+        const style = animate ? ` style="animation-delay:${120 + i * 70}ms"` : "";
         const name = (isWin ? '<i class="fa-solid fa-crown"></i> ' : "") + escapeHtml(pl.name);
-        return `<li class="${cls}"><span class="pinfo">${avatarHtml(pl.avatar, 38)}<span class="pname">${name}</span>${tag}</span>${btn}</li>`;
+        return `<li class="${cls}"${style}><span class="pinfo">${avatarHtml(pl.avatar, 38)}<span class="pname">${name}</span>${tag}</span>${btn}</li>`;
       }).join("");
       updateControls(players);
     }
