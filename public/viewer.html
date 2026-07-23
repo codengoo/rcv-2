@@ -131,6 +131,18 @@
       width: 1.7em; height: 1.7em; border-radius: 12px;
       background: var(--gold); color: #6b4a06; font-weight: 800;
     }
+    /* Đáp án đúng khi Master bật "hiện đáp án" */
+    .qpanel .qopt.correct {
+      background: var(--green-soft); border-color: var(--green); box-shadow: 0 5px 0 #a4ddc2; color: #2f8a5f;
+    }
+    .qpanel .qopt.correct .qopt-key { background: var(--green); color: #fff; }
+    .qpanel .qopt-mark { margin-left: auto; color: var(--green); }
+    .qpanel .qanswer {
+      align-self: flex-start; background: var(--green-soft); border: 2px solid var(--green);
+      border-radius: 14px; box-shadow: 0 4px 0 #a4ddc2; padding: 10px 18px; font-weight: 800; color: #2f8a5f;
+      font-size: calc(clamp(16px, 1.8vw, 32px) * var(--qscale));
+    }
+    .qpanel .qanswer i { color: var(--green); }
     /* Cột người chơi: giữ style card, thu nhỏ kích thước cho vừa */
     #stage.qmode .pcard { min-height: clamp(90px, 8vw, 130px); padding: clamp(10px, 1vw, 18px); }
     #stage.qmode .pcard .pav {
@@ -208,6 +220,33 @@
     .pcard.off .pstate { color: var(--red); }
 
     .vempty { text-align: center; font-size: clamp(20px, 2.5vw, 36px); color: var(--ink-soft); margin-top: 12vh; }
+
+    /* Popup đáp án đúng + pháo hoa */
+    .answer-modal {
+      position: fixed; inset: 0; z-index: 200;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(20, 40, 30, .55); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px);
+      animation: fadeIn .25s ease-out both;
+    }
+    .answer-modal.hidden { display: none; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .fw-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+    .answer-card {
+      position: relative; z-index: 1; text-align: center; max-width: 90vw;
+      background: var(--paper); border: 4px solid var(--gold); border-radius: 30px;
+      box-shadow: 0 12px 0 #d99a1f; padding: clamp(24px, 4vw, 56px) clamp(32px, 7vw, 90px);
+      animation: answerPop .5s cubic-bezier(.2, .8, .2, 1.2) both;
+    }
+    .answer-label {
+      font-family: "Shantell Sans", sans-serif; font-weight: 700; color: #2f8a5f;
+      font-size: clamp(22px, 3vw, 46px);
+    }
+    .answer-label i { color: var(--green); }
+    .answer-value {
+      font-family: "Shantell Sans", sans-serif; font-weight: 800; color: var(--ink);
+      font-size: clamp(40px, 8vw, 120px); line-height: 1.1; margin-top: 10px; word-break: break-word;
+    }
+    @keyframes answerPop { 0% { opacity: 0; transform: scale(.6); } 60% { transform: scale(1.06); } 100% { opacity: 1; transform: scale(1); } }
   </style>
 </head>
 <body>
@@ -263,6 +302,15 @@
     <div class="vempty hidden" id="empty">Chưa có thí sinh nào tham gia…</div>
   </div>
 
+  <!-- Popup đáp án đúng + pháo hoa -->
+  <div class="answer-modal hidden" id="answerModal">
+    <canvas class="fw-canvas" id="fireworks"></canvas>
+    <div class="answer-card">
+      <div class="answer-label"><i class="fa-solid fa-circle-check"></i> Đáp án đúng</div>
+      <div class="answer-value" id="answerValue"></div>
+    </div>
+  </div>
+
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io();
@@ -302,7 +350,7 @@
         if (!res?.ok) { $("enterMsg").textContent = res?.error || "Không vào được phòng."; return; }
         document.body.classList.add("live");
         render(res.phase, res.players);
-        applyQuestion(res.question);
+        applyQuestion(res.question, res.reveal);
       });
     }
 
@@ -420,31 +468,110 @@
     // Hiển thị theo giây (2 số lẻ); hover ra ms qua thuộc tính title.
     function secs(ms) { return (ms / 1000).toFixed(2) + " s"; }
 
+    // ---- Popup đáp án đúng + pháo hoa ----
+    let fwRAF = null, fwTimer = null, fwParticles = [];
+    function fwResize() {
+      const c = $("fireworks");
+      c.width = c.clientWidth; c.height = c.clientHeight;
+    }
+    function launchFirework() {
+      const c = $("fireworks");
+      const x = Math.random() * c.width;
+      const y = c.height * (0.18 + Math.random() * 0.42);
+      const hue = Math.floor(Math.random() * 360);
+      const n = 44;
+      for (let i = 0; i < n; i++) {
+        const ang = (Math.PI * 2 * i) / n + Math.random() * 0.2;
+        const sp = 2 + Math.random() * 4.5;
+        fwParticles.push({ x, y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, life: 1, hue });
+      }
+    }
+    function fwLoop() {
+      const c = $("fireworks"), ctx = c.getContext("2d");
+      ctx.clearRect(0, 0, c.width, c.height);
+      for (const p of fwParticles) {
+        p.x += p.vx; p.y += p.vy; p.vy += 0.045; p.vx *= 0.99; p.vy *= 0.99; p.life -= 0.011;
+        ctx.globalAlpha = Math.max(p.life, 0);
+        ctx.fillStyle = `hsl(${p.hue}, 90%, 60%)`;
+        ctx.beginPath(); ctx.arc(p.x, p.y, 3.2, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+      fwParticles = fwParticles.filter((p) => p.life > 0);
+      fwRAF = requestAnimationFrame(fwLoop);
+    }
+    function startFireworks() {
+      fwResize();
+      if (!fwRAF) fwLoop();
+      launchFirework();
+      clearInterval(fwTimer);
+      fwTimer = setInterval(launchFirework, 650);
+    }
+    function stopFireworks() {
+      clearInterval(fwTimer); fwTimer = null;
+      cancelAnimationFrame(fwRAF); fwRAF = null;
+      fwParticles = [];
+      const c = $("fireworks"); if (c) c.getContext("2d").clearRect(0, 0, c.width, c.height);
+    }
+    function showAnswerModal(text) {
+      const wasHidden = $("answerModal").classList.contains("hidden");
+      $("answerValue").textContent = text;
+      $("answerModal").classList.remove("hidden");
+      if (wasHidden) startFireworks(); // chỉ bắn pháo hoa khi lần đầu mở
+    }
+    function hideAnswerModal() {
+      if ($("answerModal").classList.contains("hidden")) return;
+      $("answerModal").classList.add("hidden");
+      stopFireworks();
+    }
+    window.addEventListener("resize", () => { if (!$("answerModal").classList.contains("hidden")) fwResize(); });
+    // ESC: ẩn modal đáp án + đồng bộ ngược lại Master (tắt reveal)
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !$("answerModal").classList.contains("hidden")) {
+        hideAnswerModal();
+        socket.emit("viewer:hideAnswer");
+      }
+    });
+
     // ---- Đề bài: layout đề trái + người chơi phải ----
-    function renderQPanel(q) {
+    function renderQPanel(q, reveal) {
       const text = q.q ? `<div class="qtext">${escapeHtml(q.q)}</div>` : "";
       const img = q.img ? `<img class="qimg" src="${escapeHtml(q.img)}" alt="Ảnh đề bài" />` : "";
-      const opts = (q.options || []).map((o, i) =>
-        `<li class="qopt"><span class="qopt-key">${String.fromCharCode(65 + i)}</span><span>${escapeHtml(o)}</span></li>`
-      ).join("");
-      $("qpanel").innerHTML = text + img + (opts ? `<ul class="qopts">${opts}</ul>` : "");
+      const showIdx = reveal && typeof q.answer === "number";
+      const opts = (q.options || []).map((o, i) => {
+        const ok = showIdx && i === q.answer;   // đáp án đúng -> tô xanh
+        return `<li class="qopt${ok ? " correct" : ""}"><span class="qopt-key">${String.fromCharCode(65 + i)}</span><span>${escapeHtml(o)}</span>${ok ? '<i class="fa-solid fa-circle-check qopt-mark"></i>' : ""}</li>`;
+      }).join("");
+      // Đáp án dạng chữ (đề không có options) -> hiện ô đáp án
+      const textAns = reveal && typeof q.answer === "string" && q.answer
+        ? `<div class="qanswer"><i class="fa-solid fa-circle-check"></i> Đáp án: ${escapeHtml(q.answer)}</div>` : "";
+      $("qpanel").innerHTML = text + img + (opts ? `<ul class="qopts">${opts}</ul>` : "") + textAns;
+
+      // Popup + pháo hoa hiển thị đáp án đúng
+      let ansText = "";
+      if (reveal) {
+        if (typeof q.answer === "number" && q.options && q.options[q.answer] !== undefined)
+          ansText = String.fromCharCode(65 + q.answer) + ". " + q.options[q.answer];
+        else if (typeof q.answer === "string" && q.answer) ansText = q.answer;
+      }
+      if (ansText) showAnswerModal(ansText); else hideAnswerModal();
     }
-    function applyQuestion(q) {
+    function applyQuestion(q, reveal) {
       const on = !!(q && (q.q || q.img));
       $("stage").classList.toggle("qmode", on);
       if (on) {
-        renderQPanel(q);
+        renderQPanel(q, reveal);
         // Chuyển status (banner) + đồng hồ vào đầu vùng đề — status trước, timer sau
         const qhead = $("qhead");
         qhead.insertBefore($("vtimer"), qhead.firstChild);
         qhead.insertBefore($("banner"), qhead.firstChild);
       } else {
         // Trả về header trên cùng khi thoát layout đề
+        hideAnswerModal();
         $("vhead").appendChild($("vtimer"));
         $("vhead").appendChild($("banner"));
       }
     }
-    socket.on("room:question", ({ question }) => applyQuestion(question));
+    socket.on("room:question", ({ question, reveal }) => applyQuestion(question, reveal));
 
     // Dropdown cỡ chữ đề bài (ghi nhớ lựa chọn)
     function setQFont(v) {

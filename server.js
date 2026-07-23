@@ -84,7 +84,20 @@ function sanitizeQuestion(q) {
   const img = typeof q.img === "string" ? q.img.slice(0, 2000) : "";
   if (!text && !img) return null; // cho phép đề chỉ có ảnh
   const options = Array.isArray(q.options) ? q.options.slice(0, 8).map((o) => String(o).slice(0, 200)) : [];
-  return { q: text, options, img };
+  // answer: index đáp án đúng (number) hoặc đáp án dạng chữ (string)
+  let answer = null;
+  if (typeof q.answer === "number" && Number.isFinite(q.answer)) answer = q.answer;
+  else if (typeof q.answer === "string" && q.answer) answer = q.answer.slice(0, 200);
+  return { q: text, options, img, answer };
+}
+
+// Payload đề gửi cho viewer: CHỈ kèm đáp án khi Master bật "hiện đáp án".
+function questionPayload(room) {
+  const q = room.question;
+  if (!q) return { question: null, reveal: false };
+  const pub = { q: q.q, options: q.options, img: q.img };
+  if (room.reveal && q.answer !== null && q.answer !== "") pub.answer = q.answer;
+  return { question: pub, reveal: !!room.reveal };
 }
 
 function genCode() {
@@ -145,7 +158,7 @@ io.on("connection", (socket) => {
   // ---- MASTER ----
   socket.on("master:create", async (_, cb) => {
     const code = genCode();
-    const room = { code, masterId: socket.id, players: new Map(), phase: "LOBBY", question: null };
+    const room = { code, masterId: socket.id, players: new Map(), phase: "LOBBY", question: null, reveal: false };
     rooms.set(code, room);
     socket.join(code);
     socket.data = { role: "master", code };
@@ -178,7 +191,7 @@ io.on("connection", (socket) => {
       qr = await QRCode.toDataURL(joinUrl, { margin: 1, width: 320, color: { dark: "#24487e", light: "#fffdf7" } });
     } catch { /* bỏ qua nếu tạo QR lỗi */ }
 
-    cb?.({ ok: true, code, joinUrl, qr, phase: room.phase, players: publicPlayers(room), question: room.question });
+    cb?.({ ok: true, code, joinUrl, qr, phase: room.phase, players: publicPlayers(room), question: room.question, reveal: room.reveal });
     broadcastRoom(room);
   });
 
@@ -227,11 +240,20 @@ io.on("connection", (socket) => {
   });
 
   // Chọn / ẩn đề bài hiển thị trên màn chiếu (Master điều khiển)
-  socket.on("master:setQuestion", ({ question } = {}) => {
+  socket.on("master:setQuestion", ({ question, reveal } = {}) => {
     const room = rooms.get(socket.data?.code);
     if (!room || room.masterId !== socket.id) return;
     room.question = question ? sanitizeQuestion(question) : null;
-    io.to(room.code).emit("room:question", { question: room.question });
+    room.reveal = !!(room.question && reveal);
+    io.to(room.code).emit("room:question", questionPayload(room));
+  });
+
+  // Viewer bấm ESC ẩn đáp án -> tắt reveal, đồng bộ ngược lại Master
+  socket.on("viewer:hideAnswer", () => {
+    const room = rooms.get(socket.data?.code);
+    if (!room || !room.reveal) return;
+    room.reveal = false;
+    io.to(room.code).emit("room:question", questionPayload(room));
   });
 
   // Mở khóa quyền chơi cho tất cả
@@ -251,7 +273,7 @@ io.on("connection", (socket) => {
     if (!room) return cb?.({ ok: false, error: "Phòng không tồn tại" });
     socket.join(code);
     socket.data = { role: "viewer", code };
-    cb?.({ ok: true, code, phase: room.phase, players: publicPlayers(room), question: room.question });
+    cb?.({ ok: true, code, phase: room.phase, players: publicPlayers(room), ...questionPayload(room) });
   });
 
   // ---- CLIENT ----

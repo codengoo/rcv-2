@@ -12,7 +12,8 @@
     },
     {
       "q": "Lan, Bình, Hòa mỗi người có 35 quả bóng bay. Lan làm vỡ 5 quả, Bình làm vỡ số bóng bằng một nửa số còn lại của Lan, Hoà làm vỡ số bóng bằng tổng 2 bạn kia làm vỡ. Hỏi số bóng còn lại của cả 3 bạn là bao nhiêu?",
-      "options": []
+      "options": [],
+      "answer": "65"
     }
   ]
 }
