@@ -143,12 +143,10 @@
         font-size: 14px;
         font-weight: 600;
         color: var(--ink-soft);
-        line-height: 1.3;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
+        line-height: 1.4;
+        flex: 1 1 auto; /* lấp khoảng trống của khung -> xem được nhiều chữ hơn */
         min-height: 36px;
+        overflow-y: auto; /* dài quá thì cuộn */
         margin-bottom: 8px;
       }
       .qbar-nav {

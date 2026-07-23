@@ -69,6 +69,7 @@
       flex: 1 1 auto; min-height: 0;
       display: grid;
       grid-template-columns: var(--qsplit, 60%) 20px minmax(0, 1fr);
+      grid-template-rows: minmax(0, 1fr);   /* giới hạn chiều cao row -> đề dài thì .qpanel tự cuộn */
     }
     #stage.qmode .qleft { display: flex; flex-direction: column; min-height: 0; gap: clamp(10px, 1vw, 18px); }
     #stage.qmode .grid {
