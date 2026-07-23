@@ -75,6 +75,8 @@
       overflow-y: auto; min-height: 0; align-content: start;
       grid-template-columns: repeat(auto-fill, minmax(clamp(150px, 12vw, 210px), 1fr));
       row-gap: clamp(18px, 2vw, 30px);
+      /* chừa chỗ cho huy chương nhô ra ngoài card (top/left âm) khỏi bị overflow cắt */
+      padding: 16px 6px 6px 12px;
       scrollbar-width: none;
     }
     #stage.qmode .grid::-webkit-scrollbar { width: 0; }
