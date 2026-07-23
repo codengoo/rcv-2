@@ -113,6 +113,23 @@
       font-family: "Shantell Sans", sans-serif; font-weight: 700; line-height: 1.28; color: var(--ink);
       font-size: calc(clamp(18px, 2.3vw, 44px) * var(--qscale));
     }
+    /* Markdown trong nội dung đề */
+    .qpanel .qtext.md p { margin: 0 0 .5em; }
+    .qpanel .qtext.md p:last-child { margin-bottom: 0; }
+    .qpanel .qtext.md ul, .qpanel .qtext.md ol { margin: .3em 0 .5em 1.3em; padding: 0; }
+    .qpanel .qtext.md li { margin: .2em 0; }
+    .qpanel .qtext.md h1, .qpanel .qtext.md h2, .qpanel .qtext.md h3 { margin: .1em 0 .35em; line-height: 1.2; }
+    .qpanel .qtext.md blockquote {
+      margin: .4em 0; padding: .4em .9em; border-left: 5px solid var(--gold);
+      background: var(--gold-soft); border-radius: 0 12px 12px 0; font-style: italic; color: var(--ink-soft);
+    }
+    .qpanel .qtext.md strong { font-weight: 800; }
+    .qpanel .qtext.md em { font-style: italic; }
+    .qpanel .qtext.md a { color: var(--blue); text-decoration: underline; }
+    .qpanel .qtext.md code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .88em; background: var(--blue-soft); padding: .06em .35em; border-radius: 6px; }
+    .qpanel .qtext.md pre { background: #f3efe2; border: 2px solid var(--line); border-radius: 12px; padding: .6em .8em; overflow-x: auto; margin: .4em 0; }
+    .qpanel .qtext.md pre code { background: none; padding: 0; font-size: .8em; }
+    .qpanel .qtext.md img { max-width: 100%; border-radius: 12px; }
     .qpanel .qimg {
       align-self: center; max-width: 100%; max-height: 42vh; object-fit: contain;
       border-radius: 16px; border: 2px solid var(--line); background: #fff;
@@ -532,18 +549,63 @@
       }
     });
 
+    // ---- Markdown nhỏ gọn, an toàn (escape HTML trước rồi mới format) ----
+    function mdInline(s) {
+      return s
+        .replace(/`([^`]+)`/g, "<code>$1</code>")
+        .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+        .replace(/__([^_]+)__/g, "<strong>$1</strong>")
+        .replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>")
+        .replace(/(^|[^_])_([^_\n]+)_/g, "$1<em>$2</em>")
+        .replace(/~~([^~]+)~~/g, "<del>$1</del>")
+        .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+    }
+    function escMd(s) {
+      return String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+    }
+    function mdInlineSafe(s) { return mdInline(escMd(s)); }
+    function mdToHtml(md) {
+      const lines = escMd(md).split(/\r?\n/);
+      let html = "", listType = null, inCode = false, codeBuf = [], para = [], quote = [];
+      const closeList = () => { if (listType) { html += `</${listType}>`; listType = null; } };
+      const flushPara = () => { if (para.length) { html += `<p>${mdInline(para.join(" "))}</p>`; para = []; } };
+      const flushQuote = () => { if (quote.length) { html += `<blockquote>${mdInline(quote.join("<br>"))}</blockquote>`; quote = []; } };
+      const flushText = () => { flushPara(); flushQuote(); };
+      for (const line of lines) {
+        if (/^```/.test(line.trim())) {
+          if (inCode) { html += `<pre><code>${codeBuf.join("\n")}</code></pre>`; codeBuf = []; inCode = false; }
+          else { flushText(); closeList(); inCode = true; }
+          continue;
+        }
+        if (inCode) { codeBuf.push(line); continue; }
+        const bq = line.match(/^\s*&gt;\s?(.*)$/);   // '>' đã bị escMd đổi thành '&gt;'
+        if (bq) { flushPara(); closeList(); quote.push(bq[1]); continue; }
+        const h = line.match(/^(#{1,6})\s+(.*)$/);
+        if (h) { flushText(); closeList(); html += `<h${h[1].length}>${mdInline(h[2])}</h${h[1].length}>`; continue; }
+        const ul = line.match(/^\s*[-*+]\s+(.*)$/);
+        if (ul) { flushText(); if (listType !== "ul") { closeList(); html += "<ul>"; listType = "ul"; } html += `<li>${mdInline(ul[1])}</li>`; continue; }
+        const ol = line.match(/^\s*\d+\.\s+(.*)$/);
+        if (ol) { flushText(); if (listType !== "ol") { closeList(); html += "<ol>"; listType = "ol"; } html += `<li>${mdInline(ol[1])}</li>`; continue; }
+        if (line.trim() === "") { flushText(); closeList(); continue; }
+        flushQuote(); closeList(); para.push(line.trim());
+      }
+      if (inCode) html += `<pre><code>${codeBuf.join("\n")}</code></pre>`;
+      flushText(); closeList();
+      return html;
+    }
+
     // ---- Đề bài: layout đề trái + người chơi phải ----
     function renderQPanel(q, reveal) {
-      const text = q.q ? `<div class="qtext">${escapeHtml(q.q)}</div>` : "";
+      const text = q.q ? `<div class="qtext md">${mdToHtml(q.q)}</div>` : "";
       const img = q.img ? `<img class="qimg" src="${escapeHtml(q.img)}" alt="Ảnh đề bài" />` : "";
       const showIdx = reveal && typeof q.answer === "number";
       const opts = (q.options || []).map((o, i) => {
         const ok = showIdx && i === q.answer;   // đáp án đúng -> tô xanh
-        return `<li class="qopt${ok ? " correct" : ""}"><span class="qopt-key">${String.fromCharCode(65 + i)}</span><span>${escapeHtml(o)}</span>${ok ? '<i class="fa-solid fa-circle-check qopt-mark"></i>' : ""}</li>`;
+        return `<li class="qopt${ok ? " correct" : ""}"><span class="qopt-key">${String.fromCharCode(65 + i)}</span><span>${mdInlineSafe(o)}</span>${ok ? '<i class="fa-solid fa-circle-check qopt-mark"></i>' : ""}</li>`;
       }).join("");
       // Đáp án dạng chữ (đề không có options) -> hiện ô đáp án
       const textAns = reveal && typeof q.answer === "string" && q.answer
-        ? `<div class="qanswer"><i class="fa-solid fa-circle-check"></i> Đáp án: ${escapeHtml(q.answer)}</div>` : "";
+        ? `<div class="qanswer"><i class="fa-solid fa-circle-check"></i> Đáp án: ${mdInlineSafe(q.answer)}</div>` : "";
       $("qpanel").innerHTML = text + img + (opts ? `<ul class="qopts">${opts}</ul>` : "") + textAns;
 
       // Popup + pháo hoa hiển thị đáp án đúng

@@ -1,19 +1,46 @@
 {
   "questions": [
     {
-      "q": "Có bao nhiêu hình vuông trong hình dưới đây",
-      "options": [],
-      "img": "/images/image_1.png"
+      "q": "**Định dạng cơ bản:** *in nghiêng*, **in đậm**, ~~gạch ngang~~ và `inline code`.\n\nĐâu là ngôn ngữ đánh dấu nhẹ (lightweight markup)?",
+      "options": ["**Markdown**", "*HTML*", "`JSON`", "YAML"],
+      "answer": 0
     },
     {
-      "q": "Có bao nhiêu lỗi chính tả trong bài vè",
-      "options": [],
-      "img": ""
+      "q": "# Tiêu đề lớn\n## Tiêu đề phụ\n\nĐây là một đoạn văn bình thường, có thể **nhấn mạnh** vài từ.\n\nCác bước giải:\n\n1. Đọc kỹ đề\n2. Phân tích dữ kiện\n3. Trình bày lời giải\n\nCó tất cả mấy bước?",
+      "options": ["2", "3", "4", "5"],
+      "answer": 1
     },
     {
-      "q": "Lan, Bình, Hòa mỗi người có 35 quả bóng bay. Lan làm vỡ 5 quả, Bình làm vỡ số bóng bằng một nửa số còn lại của Lan, Hoà làm vỡ số bóng bằng tổng 2 bạn kia làm vỡ. Hỏi số bóng còn lại của cả 3 bạn là bao nhiêu?",
+      "q": "Đoạn code sau in ra kết quả gì?\n\n```\nfor i in range(3):\n    print(i)\n```",
+      "options": ["`0 1 2`", "`1 2 3`", "`0 1 2 3`", "Báo lỗi"],
+      "answer": 0
+    },
+    {
+      "q": "Chọn **thủ đô** đúng của Việt Nam.\n\nGợi ý:\n- Nằm ở miền Bắc\n- Có Hồ Gươm và Văn Miếu\n- Từng có tên *Thăng Long*",
+      "options": ["TP. Hồ Chí Minh", "**Hà Nội**", "Đà Nẵng", "Huế"],
+      "answer": 1
+    },
+    {
+      "q": "## Đếm hình\n\nQuan sát ảnh bên dưới và cho biết: có bao nhiêu **hình vuông**?",
       "options": [],
-      "answer": "65"
+      "img": "/images/image_1.png",
+      "answer": "5 hình vuông"
+    },
+    {
+      "q": "Đây là chiếc cúp danh giá nhất bóng đá thế giới.\n\nGiải đấu trao chiếc cúp này *4 năm một lần* tên là gì?",
+      "options": ["UEFA Euro", "**FIFA World Cup**", "Champions League", "Copa America"],
+      "img": "/images/worldcup.png",
+      "answer": 1
+    },
+    {
+      "q": "> Trăm năm trong cõi người ta\n> Chữ tài chữ mệnh khéo là ghét nhau\n\nTác giả của *Truyện Kiều* là ai? Xem thêm tại [đây](https://vi.wikipedia.org/wiki/Truyện_Kiều).",
+      "options": [],
+      "answer": "**Nguyễn Du**"
+    },
+    {
+      "q": "Lan, Bình, Hòa mỗi người có **35** quả bóng bay.\n\n- Lan làm vỡ `5` quả\n- Bình làm vỡ *một nửa* số còn lại của Lan\n- Hoà làm vỡ số bóng bằng **tổng** 2 bạn kia làm vỡ\n\nHỏi số bóng còn lại của **cả 3 bạn** là bao nhiêu?",
+      "options": ["60", "65", "70", "75"],
+      "answer": 1
     }
   ]
 }
