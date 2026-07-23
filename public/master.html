@@ -8,8 +8,122 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Mansalva&family=Shantell+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/style.css" />
+  <style>
+    .wrap { max-width: 900px; }
+
+    /* Thanh điều khiển — chỉ hiện khi đang chơi (gamemode) */
+    .controls { margin: 4px 0 16px; }
+    .controls .msg { margin: 8px 0; }
+    .controls button { margin-top: 6px; }
+    #room:not(.gamemode) .controls { display: none; }
+    #startBtnEntry { margin-top: 14px; }
+    #room.gamemode #startBtnEntry { display: none; }
+    button.red { background: var(--red); box-shadow: 0 5px 0 #cf5a52; }
+    button.red:active { box-shadow: 0 1px 0 #cf5a52; }
+    .info-btn { display: none; }               /* chỉ hiện ở chế độ đang chơi */
+    #room.gamemode .info-btn { display: inline-block; }
+    .info-close { display: none; }
+
+    /* Bố cục 2 panel */
+    .room-body { display: flex; gap: 22px; align-items: flex-start; }
+    .info-panel { flex: 0 0 44%; text-align: center; }
+    .players-panel { flex: 1 1 auto; min-width: 0; }
+    @media (max-width: 700px) {
+      .room-body { flex-direction: column; }
+      .info-panel { flex-basis: auto; width: 100%; }
+    }
+
+    /* Chế độ đang chơi: ẩn panel thông tin, người chơi chiếm toàn khung */
+    #room.gamemode .info-panel { display: none; }
+
+    /* Mở panel thông tin dưới dạng modal */
+    #room.gamemode.info-open .info-panel {
+      display: block; position: fixed; z-index: 60;
+      top: 50%; left: 50%; transform: translate(-50%, -50%);
+      width: min(420px, 92vw); max-height: 88vh; overflow: auto;
+    }
+    #room.gamemode.info-open .info-close { display: inline-block; }
+    #room.gamemode.info-open .backdrop { display: block; }
+    .backdrop { display: none; position: fixed; inset: 0; background: rgba(30, 50, 90, .45); z-index: 55; }
+    button.info-close {
+      background: #fff; color: var(--ink-soft); border: 2px solid var(--line);
+      box-shadow: none; padding: 4px 12px; font-size: 16px;
+    }
+
+    .panel {
+      background: #fffdf7; border: 2px solid var(--line);
+      border-radius: 20px; padding: 18px;
+      box-shadow: 0 6px 18px rgba(90, 121, 168, .09);
+    }
+    .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+    .panel-head h2 { font-family: "Mansalva", cursive; font-size: 22px; font-weight: 400; color: var(--ink); }
+    .players { margin-top: 0; }
+    .players li.off { opacity: .55; }
+    .players li .pinfo { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .players li.winner {
+      background: linear-gradient(160deg, #fffdf7, var(--gold-soft));
+      border-color: var(--gold);
+      box-shadow: 0 4px 14px rgba(244, 183, 63, .3);
+      font-weight: 700;
+    }
+    .tag.gold { background: var(--gold); color: #6b4a06; font-weight: 800; }
+    .join-row {
+      display: flex; align-items: center; gap: 8px; margin-top: 10px;
+      background: #fffdf7; border: 2px solid var(--line); border-radius: 12px;
+      padding: 6px 6px 6px 12px;
+    }
+    .join-link {
+      flex: 1; min-width: 0; font-size: 13px; font-weight: 600;
+      color: var(--ink-soft); text-align: left; word-break: break-all;
+    }
+    button.copy-btn {
+      width: auto; margin: 0; flex: 0 0 auto; padding: 9px 14px; font-size: 14px;
+      border-radius: 10px; border: none; color: #fff; white-space: nowrap;
+      background: var(--blue); box-shadow: 0 3px 0 #4d86c4;
+    }
+    button.copy-btn:active { transform: translateY(3px); box-shadow: 0 0 0 #4d86c4; }
+    button.copy-btn.ok { background: var(--green); box-shadow: 0 3px 0 #52b082; }
+
+    .viewer-link {
+      display: inline-block; margin-top: 14px; padding: 10px 16px;
+      background: var(--blue-soft); color: var(--ink); border-radius: 12px;
+      font-weight: 700; font-size: 14px;
+    }
+    .viewer-link:hover { text-decoration: none; filter: brightness(.97); }
+
+    button.mini {
+      width: auto; margin: 0; padding: 9px 14px; font-size: 14px;
+      border-radius: 12px; background: var(--gold); color: #6b4a06;
+      box-shadow: 0 3px 0 #d99a1f; white-space: nowrap;
+    }
+    button.mini:active { box-shadow: 0 1px 0 #d99a1f; }
+    button.row-btn {
+      width: auto; margin: 0; padding: 8px 18px; font-size: 14px; font-weight: 700;
+      border-radius: 11px; border: none; color: #fff;
+      background: var(--red); box-shadow: 0 3px 0 #cf5a52;
+    }
+    button.row-btn:active { transform: translateY(3px); box-shadow: 0 0 0 #cf5a52; }
+    button.row-btn.on { background: var(--green); box-shadow: 0 3px 0 #52b082; }
+    button.row-btn.on:active { box-shadow: 0 0 0 #52b082; }
+    .empty { color: var(--ink-soft); font-size: 14px; text-align: center; padding: 14px 0; font-weight: 500; }
+  </style>
 </head>
 <body>
+  <button id="fsBtn" class="fs-btn" title="Toàn màn hình" aria-label="Toàn màn hình">⛶</button>
+  <script>
+    (function () {
+      var b = document.getElementById("fsBtn");
+      b.onclick = function () {
+        if (document.fullscreenElement) { if (document.exitFullscreen) document.exitFullscreen(); }
+        else if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(function () {});
+      };
+      document.addEventListener("fullscreenchange", function () {
+        var on = !!document.fullscreenElement;
+        b.title = on ? "Thoát toàn màn hình" : "Toàn màn hình";
+        b.classList.toggle("on", on);
+      });
+    })();
+  </script>
   <div class="wrap">
     <div class="card">
       <h1 class="underline">🔔 Rung chuông vàng</h1>
@@ -20,22 +134,45 @@
       </div>
 
       <div id="room" class="hidden">
-        <div class="hint">Mã phòng — chia sẻ cho người chơi</div>
-        <div class="code-badge" id="codeBadge">----</div>
-        <img id="qrImg" alt="QR tham gia phòng"
-             style="display:block;width:190px;height:190px;margin:12px auto 6px;border-radius:18px;border:3px solid #f0e8d4;background:#fffdf7;padding:6px;" />
-        <div class="hint">📱 Quét mã QR để vào phòng ngay</div>
-        <div class="hint" id="joinUrl" style="margin-top:6px;word-break:break-all;"></div>
+        <!-- Thanh điều khiển: luôn hiển thị -->
+        <div class="controls">
+          <button id="infoBtn" class="mini info-btn">🏠 Thông tin phòng</button>
+          <div id="phaseBox" class="msg"></div>
+          <button id="startBtn" class="green">Bắt đầu ▶</button>
+          <button id="stopBtn" class="red hidden">⏹ Dừng &amp; công bố kết quả</button>
+          <button id="resetBtn" class="ghost hidden">Chơi lại 🔄</button>
+        </div>
 
-        <div id="phaseBox" class="msg"></div>
+        <div class="room-body">
+          <!-- PANEL thông tin phòng (inline ở lobby, modal khi đang chơi) -->
+          <div id="infoPanel" class="panel info-panel">
+            <div class="panel-head">
+              <h2>🏠 Thông tin phòng</h2>
+              <button id="infoCloseBtn" class="mini info-close">✕</button>
+            </div>
+            <img id="qrImg" alt="QR tham gia phòng"
+                 style="display:block;width:180px;height:180px;margin:4px auto 6px;border-radius:18px;border:3px solid #f0e8d4;background:#fffdf7;padding:6px;" />
+            <div class="hint">📱 Quét mã QR để vào phòng ngay</div>
+            <div class="join-row">
+              <span class="join-link" id="joinUrl"></span>
+              <button id="copyBtn" class="copy-btn" title="Sao chép link phòng">📋 Copy</button>
+            </div>
+            <a id="viewerLink" href="#" target="_blank" class="viewer-link">📺 Mở màn chiếu cho khán giả</a>
+            <button id="startBtnEntry" class="green">Bắt đầu ▶</button>
+          </div>
 
-        <h1 style="font-size:16px;margin-top:16px;">Người chơi (<span id="count">0</span>)</h1>
-        <ul class="players" id="playerList"></ul>
+          <!-- PANEL danh sách người chơi -->
+          <div class="panel players-panel">
+            <div class="panel-head">
+              <h2>Người chơi (<span id="count">0</span>)</h2>
+              <button id="enableAllBtn" class="mini">🔓 Mở khóa tất cả</button>
+            </div>
+            <ul class="players" id="playerList"></ul>
+            <div class="empty" id="emptyHint">Chưa có ai tham gia…</div>
+          </div>
+        </div>
 
-        <div id="resultBox"></div>
-
-        <button id="startBtn" class="green">Bắt đầu</button>
-        <button id="resetBtn" class="ghost hidden">Chơi lại</button>
+        <div id="infoBackdrop" class="backdrop"></div>
       </div>
     </div>
   </div>
@@ -44,6 +181,8 @@
   <script>
     const socket = io();
     let phase = "LOBBY";
+    let winnerId = null; // người thắng vòng hiện tại (để tô màu trong danh sách)
+    let joinUrl = "";
 
     const $ = (id) => document.getElementById(id);
 
@@ -52,71 +191,107 @@
         if (res?.ok) {
           $("setup").classList.add("hidden");
           $("room").classList.remove("hidden");
-          $("codeBadge").textContent = res.code;
           if (res.qr) $("qrImg").src = res.qr; else $("qrImg").style.display = "none";
+          joinUrl = res.joinUrl;
           $("joinUrl").textContent = res.joinUrl;
+          $("viewerLink").href = "/viewer.html?code=" + res.code;
         }
       });
     };
 
-    $("startBtn").onclick = () => socket.emit("master:start");
-    $("resetBtn").onclick = () => socket.emit("master:reset");
+    $("copyBtn").onclick = async () => {
+      if (!joinUrl) return;
+      try {
+        await navigator.clipboard.writeText(joinUrl);
+      } catch {
+        const t = document.createElement("textarea");
+        t.value = joinUrl; document.body.appendChild(t); t.select();
+        try { document.execCommand("copy"); } catch {}
+        t.remove();
+      }
+      const b = $("copyBtn");
+      b.textContent = "✓ Đã copy"; b.classList.add("ok");
+      setTimeout(() => { b.textContent = "📋 Copy"; b.classList.remove("ok"); }, 1400);
+    };
 
-    function renderPhase() {
+    const doStart = () => {
+      $("room").classList.add("gamemode"); // chuyển sang layout tập trung
+      socket.emit("master:start");
+    };
+    $("startBtn").onclick = doStart;
+    $("startBtnEntry").onclick = doStart;
+    $("stopBtn").onclick = () => socket.emit("master:stop");
+    $("resetBtn").onclick = () => socket.emit("master:reset");
+    $("enableAllBtn").onclick = () => socket.emit("master:enableAll");
+
+    // Modal thông tin phòng (chế độ đang chơi)
+    const openInfo = () => $("room").classList.add("info-open");
+    const closeInfo = () => $("room").classList.remove("info-open");
+    $("infoBtn").onclick = openInfo;
+    $("infoCloseBtn").onclick = closeInfo;
+    $("infoBackdrop").onclick = closeInfo;
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeInfo(); });
+
+    // Khóa / mở quyền chơi từng người (event delegation)
+    $("playerList").addEventListener("click", (e) => {
+      const btn = e.target.closest(".row-btn");
+      if (btn) socket.emit("master:toggleDisable", { playerId: btn.dataset.id });
+    });
+
+    function updateControls(players) {
+      const gm = $("room").classList.contains("gamemode");
       const box = $("phaseBox");
-      const startBtn = $("startBtn");
-      const resetBtn = $("resetBtn");
-      if (phase === "LOBBY") {
-        box.textContent = "⏳ Sẵn sàng. Bấm Bắt đầu để ra hiệu ngay lập tức.";
-        startBtn.classList.remove("hidden");
-        startBtn.disabled = false;
-      } else if (phase === "SIGNAL") {
-        box.textContent = "🟢 ĐÃ RA HIỆU! Chờ người chơi bấm...";
-        startBtn.disabled = true;
+      const startBtn = $("startBtn"), startEntry = $("startBtnEntry"), stopBtn = $("stopBtn"), resetBtn = $("resetBtn");
+      const show = (el, on) => el.classList.toggle("hidden", !on);
+      const active = players.filter((pl) => !pl.disabled).length;
+      const anyBuzzed = players.some((pl) => pl.buzzed && !pl.disabled);
+      if (phase === "SIGNAL") {
+        show(startBtn, false); show(startEntry, false);
+        show(resetBtn, false); show(stopBtn, true);
+        box.textContent = "🟢 ĐÃ RA HIỆU! Chờ người chơi bấm — hoặc bấm Dừng để công bố ngay.";
+      } else { // LOBBY
+        show(stopBtn, false);
+        if (winnerId || anyBuzzed) {
+          show(startBtn, false); show(startEntry, false); show(resetBtn, true);
+          box.textContent = "🏆 Đã công bố kết quả. Bấm Chơi lại để bắt đầu vòng mới.";
+        } else {
+          show(resetBtn, false);
+          // Sẵn sàng: entry -> nút trong panel; gamemode -> nút ở thanh điều khiển
+          show(startEntry, !gm); show(startBtn, gm);
+          startBtn.disabled = startEntry.disabled = active === 0;
+          box.textContent = "⏳ Sẵn sàng. Bấm Bắt đầu để ra hiệu ngay lập tức.";
+        }
       }
     }
 
     socket.on("room:update", ({ phase: p, players }) => {
+      if (p === "SIGNAL") winnerId = null; // vòng mới -> bỏ đánh dấu người thắng cũ
       phase = p;
       $("count").textContent = players.length;
+      $("emptyHint").style.display = players.length ? "none" : "block";
       $("playerList").innerHTML = players.map((pl) => {
-        let tag = '<span class="tag wait">chờ</span>';
-        if (pl.falseStart) tag = '<span class="tag foul">phạm quy</span>';
+        const isWin = !pl.disabled && pl.id === winnerId;
+        let tag;
+        if (pl.disabled) tag = '<span class="tag foul">đã khóa</span>';
+        else if (isWin) tag = `<span class="tag gold">🏆 ${pl.reaction} ms</span>`;
         else if (pl.buzzed) tag = `<span class="tag ok">${pl.reaction} ms</span>`;
-        return `<li><span>${escapeHtml(pl.name)}</span>${tag}</li>`;
+        else tag = '<span class="tag wait">chờ</span>';
+        const btn = `<button class="row-btn ${pl.disabled ? "on" : ""}" data-id="${pl.id}">${pl.disabled ? "Mở khóa" : "Khóa"}</button>`;
+        const cls = (pl.disabled ? "off" : "") + (isWin ? " winner" : "");
+        const name = (isWin ? "👑 " : "") + escapeHtml(pl.name);
+        return `<li class="${cls}"><span class="pinfo">${avatarHtml(pl.avatar, 38)}<span class="pname">${name}</span>${tag}</span>${btn}</li>`;
       }).join("");
-      $("startBtn").disabled = phase !== "LOBBY" || players.length === 0;
-      renderPhase();
+      updateControls(players);
     });
 
-    socket.on("game:results", ({ winner, ranking, fouls }) => {
-      $("startBtn").classList.add("hidden");
-      $("resetBtn").classList.remove("hidden");
-      let html = '<div class="card" style="margin-top:16px;background:linear-gradient(160deg,#fffdf7,#ffe9b0);border-color:#f4b73f;">';
-      if (winner) {
-        html += `<div style="text-align:center;font-size:20px;">🏆 <b class="rank1">${escapeHtml(winner.name)}</b></div>`;
-        html += `<div class="reaction">${winner.reaction} ms</div>`;
-      } else {
-        html += '<div style="text-align:center;">Không có ai bấm hợp lệ 😅</div>';
-      }
-      if (ranking.length) {
-        html += '<ul class="players" style="margin-top:12px;">' + ranking.map((r) =>
-          `<li><span>${r.rank === 1 ? "🥇" : r.rank === 2 ? "🥈" : r.rank === 3 ? "🥉" : r.rank + "."} ${escapeHtml(r.name)}</span><span>${r.reaction} ms</span></li>`
-        ).join("") + "</ul>";
-      }
-      if (fouls.length) {
-        html += '<div class="status">Phạm quy: ' + fouls.map((f) => escapeHtml(f.name)).join(", ") + "</div>";
-      }
-      html += "</div>";
-      $("resultBox").innerHTML = html;
-    });
+    // winnerId để tô màu người thắng; nút bấm do room:update (updateControls) quản lý
+    socket.on("game:results", ({ winner }) => { winnerId = winner ? winner.id : null; });
+    socket.on("game:reset", () => { winnerId = null; });
 
-    socket.on("game:reset", () => {
-      $("resultBox").innerHTML = "";
-      $("startBtn").classList.remove("hidden");
-      $("resetBtn").classList.add("hidden");
-    });
-
+    function avatarHtml(av, size) {
+      if (!av) return "";
+      return `<span class="avatar" style="width:${size}px;height:${size}px;background:${av.color};font-size:${Math.round(size * 0.58)}px">${av.emoji}</span>`;
+    }
     function escapeHtml(s) {
       return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
     }

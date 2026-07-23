@@ -54,6 +54,19 @@ function getLanIP() {
 const { best: LAN_IP, all: ALL_IPS } = getLanIP();
 const BASE_URL = `http://${LAN_IP}:${PORT}`;
 
+// Avatar dễ thương kiểu Kahoot: con vật + nền màu rực rỡ
+const ANIMALS = ["🐼","🐰","🦊","🐶","🐱","🐵","🐸","🐷","🐨","🐯","🦁","🐮","🐔","🦄","🐧","🦉","🐢","🐝","🦋","🐳","🐬","🦕","🦖","🐙","🦈","🐴","🐗","🐭","🐹","🦝","🦥","🦦","🦔","🐺","🦩","🦚","🐊","🦒"];
+const AV_COLORS = ["#ef476f","#f78c6b","#ffb703","#06d6a0","#118ab2","#4361ee","#7209b7","#f72585","#3a86ff","#fb5607","#8338ec","#2a9d8f","#e76f51","#43aa8b","#d00000","#ff6d00"];
+
+function assignAvatar(room) {
+  const used = new Set([...room.players.values()].map((p) => p.avatar?.emoji));
+  const free = ANIMALS.filter((a) => !used.has(a));
+  const pool = free.length ? free : ANIMALS;
+  const emoji = pool[Math.floor(Math.random() * pool.length)];
+  const color = AV_COLORS[Math.floor(Math.random() * AV_COLORS.length)];
+  return { emoji, color };
+}
+
 function genCode() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // bỏ ký tự dễ nhầm (I,O,0,1)
   let code;
@@ -69,6 +82,8 @@ function publicPlayers(room) {
     name: p.name,
     reaction: p.reaction,
     buzzed: p.buzzed,
+    disabled: p.disabled,
+    avatar: p.avatar,
   }));
 }
 
@@ -80,13 +95,13 @@ function broadcastRoom(room) {
 }
 
 function allBuzzed(room) {
-  const list = [...room.players.values()];
-  return list.length > 0 && list.every((p) => p.buzzed);
+  const active = [...room.players.values()].filter((p) => !p.disabled);
+  return active.length > 0 && active.every((p) => p.buzzed);
 }
 
 function computeRanking(room) {
   const valid = [...room.players.entries()]
-    .filter(([, p]) => p.buzzed && typeof p.reaction === "number")
+    .filter(([, p]) => p.buzzed && !p.disabled && typeof p.reaction === "number")
     .sort((a, b) => a[1].reaction - b[1].reaction)
     .map(([id, p], i) => ({ id, name: p.name, reaction: p.reaction, rank: i + 1 }));
   return { winner: valid[0] || null, ranking: valid };
@@ -130,7 +145,8 @@ io.on("connection", (socket) => {
     const room = rooms.get(socket.data?.code);
     if (!room || room.masterId !== socket.id) return;
     if (room.phase !== "LOBBY") return;
-    if (room.players.size === 0) return;
+    const active = [...room.players.values()].filter((p) => !p.disabled);
+    if (active.length === 0) return;
 
     resetRoundState(room);
     room.phase = "SIGNAL";
@@ -147,6 +163,47 @@ io.on("connection", (socket) => {
     broadcastRoom(room);
   });
 
+  // Dừng vòng ngay lập tức và công bố ranking (với những ai đã bấm)
+  socket.on("master:stop", () => {
+    const room = rooms.get(socket.data?.code);
+    if (!room || room.masterId !== socket.id) return;
+    if (room.phase !== "SIGNAL") return;
+    endRound(room);
+  });
+
+  // Khóa / mở quyền chơi của 1 người
+  socket.on("master:toggleDisable", ({ playerId }) => {
+    const room = rooms.get(socket.data?.code);
+    if (!room || room.masterId !== socket.id) return;
+    const p = room.players.get(playerId);
+    if (!p) return;
+    p.disabled = !p.disabled;
+    if (p.disabled) { p.buzzed = false; p.reaction = null; } // loại khỏi vòng hiện tại
+    io.to(playerId).emit("player:disabled", { disabled: p.disabled });
+    broadcastRoom(room);
+    if (room.phase === "SIGNAL" && allBuzzed(room)) endRound(room);
+  });
+
+  // Mở khóa quyền chơi cho tất cả
+  socket.on("master:enableAll", () => {
+    const room = rooms.get(socket.data?.code);
+    if (!room || room.masterId !== socket.id) return;
+    for (const [id, p] of room.players) {
+      if (p.disabled) { p.disabled = false; io.to(id).emit("player:disabled", { disabled: false }); }
+    }
+    broadcastRoom(room);
+  });
+
+  // ---- VIEWER (màn chiếu, chỉ xem) ----
+  socket.on("viewer:join", ({ code }, cb) => {
+    code = String(code || "").trim().toUpperCase();
+    const room = rooms.get(code);
+    if (!room) return cb?.({ ok: false, error: "Phòng không tồn tại" });
+    socket.join(code);
+    socket.data = { role: "viewer", code };
+    cb?.({ ok: true, code, phase: room.phase, players: publicPlayers(room) });
+  });
+
   // ---- CLIENT ----
   socket.on("client:join", ({ code, name }, cb) => {
     code = String(code || "").trim().toUpperCase();
@@ -154,10 +211,11 @@ io.on("connection", (socket) => {
     const room = rooms.get(code);
     if (!room) return cb?.({ ok: false, error: "Phòng không tồn tại" });
 
-    room.players.set(socket.id, { name, reaction: null, buzzed: false });
+    const avatar = assignAvatar(room);
+    room.players.set(socket.id, { name, reaction: null, buzzed: false, disabled: false, avatar });
     socket.join(code);
     socket.data = { role: "client", code };
-    cb?.({ ok: true, code, phase: room.phase });
+    cb?.({ ok: true, code, phase: room.phase, avatar });
     broadcastRoom(room);
   });
 
@@ -165,7 +223,7 @@ io.on("connection", (socket) => {
     const room = rooms.get(socket.data?.code);
     if (!room || room.phase !== "SIGNAL") return; // chỉ tính khi đã ra hiệu
     const p = room.players.get(socket.id);
-    if (!p || p.buzzed) return;
+    if (!p || p.buzzed || p.disabled) return;
 
     const r = Number(reaction);
     p.reaction = Number.isFinite(r) && r >= 0 ? Math.round(r) : 99999;

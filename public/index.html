@@ -23,26 +23,15 @@
     /* --- Màn chơi: full màn hình --- */
     body.playing { padding: 0; align-items: stretch; }
     body.playing .wrap { max-width: 100%; }
-    #gameCard {
+    body.playing #gameCard {
       height: 100dvh;
       border: none; border-radius: 0; box-shadow: none;
       background: transparent;
       display: flex; flex-direction: column;
       padding: max(14px, env(safe-area-inset-top)) 14px max(14px, env(safe-area-inset-bottom));
       gap: 10px;
+      overflow-y: auto;
     }
-    .topbar {
-      display: flex; align-items: center; justify-content: space-between;
-      font-size: 15px; font-weight: 600; color: var(--ink);
-      padding: 4px 6px;
-    }
-    .topbar .room { font-family: "Mansalva", cursive; font-size: 20px; }
-    .topbar .me {
-      background: var(--blue-soft); color: var(--ink);
-      padding: 5px 12px; border-radius: 999px; font-size: 13px; font-weight: 700;
-      max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    }
-
     /* Đèn/nút bấm chiếm phần lớn màn hình */
     #gameCard .stage {
       flex: 1 1 auto;
@@ -57,14 +46,34 @@
     #gameCard .stage.signal { box-shadow: 0 0 0 5px rgba(111,199,154,.25), 0 12px 30px rgba(79,181,135,.35); }
     #gameCard .stage.signal:active { transform: scale(.97); }
     .bell { font-size: clamp(56px, 20vw, 120px); line-height: 1; }
+    .done-icon { font-size: clamp(52px, 16vw, 100px); line-height: 1; }
+    .done-ms {
+      font-family: "Mansalva", cursive; font-weight: 800;
+      font-size: clamp(46px, 15vw, 96px); line-height: 1.05;
+      white-space: nowrap; margin-top: 6px;
+    }
     .tap-hint { font-size: clamp(15px, 4.5vw, 20px); font-weight: 600; opacity: .85; margin-top: 4px; }
 
     .msg { margin-top: 4px; }
     #resultBox { flex: 0 0 auto; }
-    #gameCard { overflow-y: auto; }
   </style>
 </head>
 <body>
+  <button id="fsBtn" class="fs-btn" title="Toàn màn hình" aria-label="Toàn màn hình">⛶</button>
+  <script>
+    (function () {
+      var b = document.getElementById("fsBtn");
+      b.onclick = function () {
+        if (document.fullscreenElement) { if (document.exitFullscreen) document.exitFullscreen(); }
+        else if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(function () {});
+      };
+      document.addEventListener("fullscreenchange", function () {
+        var on = !!document.fullscreenElement;
+        b.title = on ? "Thoát toàn màn hình" : "Toàn màn hình";
+        b.classList.toggle("on", on);
+      });
+    })();
+  </script>
   <div class="wrap">
     <!-- Màn join -->
     <div class="card" id="joinCard">
@@ -82,11 +91,6 @@
 
     <!-- Màn chơi -->
     <div class="card hidden" id="gameCard">
-      <div class="topbar">
-        <span class="room">🔔 Phòng <b id="roomCode"></b></span>
-        <span class="me" id="meName"></span>
-      </div>
-
       <div class="stage wait" id="stage">
         <div id="stageText"></div>
       </div>
@@ -106,6 +110,8 @@
     let signalPerf = null;   // mốc thời gian LOCAL khi nhận tín hiệu
     let hasActed = false;    // đã bấm trong vòng này
     let myName = "";
+    let myAvatar = null;     // avatar con vật kiểu Kahoot
+    let iDisabled = false;   // bị Master khóa quyền chơi
 
     const vibrate = (p) => { try { navigator.vibrate && navigator.vibrate(p); } catch {} };
 
@@ -129,11 +135,10 @@
       socket.emit("client:join", { code, name }, (res) => {
         if (!res?.ok) { $("joinMsg").textContent = res?.error || "Không vào được phòng."; return; }
         myName = name;
+        myAvatar = res.avatar || null;
         document.body.classList.add("playing");
         $("joinCard").classList.add("hidden");
         $("gameCard").classList.remove("hidden");
-        $("roomCode").textContent = res.code;
-        $("meName").textContent = "👤 " + name;
         showWait();
       });
     }
@@ -146,12 +151,14 @@
     });
 
     function buzz() {
-      if (hasActed || phase !== "SIGNAL") return;
+      if (hasActed || phase !== "SIGNAL" || iDisabled) return;
       const reaction = Math.round(performance.now() - signalPerf);
       hasActed = true;
       vibrate(35);
       socket.emit("client:buzz", { reaction });
-      setStage("done", `⚡ ${reaction} ms`, "Đã bấm! Chờ kết quả…");
+      stage.className = "stage done";
+      $("stageText").innerHTML = `<div class="done-icon">⚡</div><div class="done-ms">${reaction} ms</div>`;
+      $("gameMsg").textContent = "Đã bấm! Chờ kết quả…";
     }
 
     function setStage(cls, big, msg) {
@@ -160,8 +167,17 @@
       $("gameMsg").textContent = msg || "";
     }
     function showWait() {
+      if (iDisabled) return showLocked();
       stage.className = "stage wait";
-      $("stageText").innerHTML = `<div class="bell">🔔</div><div class="tap-hint">Chờ hiệu lệnh…</div>`;
+      const icon = myAvatar
+        ? `<span class="avatar" style="width:clamp(90px,28vw,160px);height:clamp(90px,28vw,160px);background:${myAvatar.color};font-size:clamp(52px,17vw,96px)">${myAvatar.emoji}</span>`
+        : `<div class="bell">🔔</div>`;
+      $("stageText").innerHTML = `${icon}<div class="tap-hint" style="margin-top:10px">${escapeHtml(myName)} · chờ hiệu lệnh…</div>`;
+      $("gameMsg").textContent = "";
+    }
+    function showLocked() {
+      stage.className = "stage foul";
+      $("stageText").innerHTML = `<div class="bell">🔒</div><div class="tap-hint">Bạn đã bị tạm khóa quyền chơi</div>`;
       $("gameMsg").textContent = "";
     }
 
@@ -170,9 +186,16 @@
       signalPerf = performance.now();      // đo LOCAL từ lúc màn hình hiện tín hiệu
       phase = "SIGNAL"; hasActed = false;
       $("resultBox").innerHTML = "";
+      if (iDisabled) return showLocked();  // bị khóa thì không hiện nút bấm
       vibrate([0, 60]);
       setStage("signal", "BẤM!", "");
       stage.querySelector("#stageText").insertAdjacentHTML("beforeend", '<div class="tap-hint">Chạm nhanh vào đây!</div>');
+    });
+
+    socket.on("player:disabled", ({ disabled }) => {
+      iDisabled = disabled;
+      if (disabled) { hasActed = true; showLocked(); }
+      else { hasActed = false; showWait(); }
     });
 
     socket.on("game:results", ({ winner, ranking }) => {

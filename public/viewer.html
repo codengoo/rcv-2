@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>📺 Rung chuông vàng - Màn chiếu</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Mansalva&family=Shantell+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/style.css" />
+  <style>
+    body { display: block; padding: 0; align-items: stretch; justify-content: flex-start; }
+
+    /* Màn nhập mã (khi mở trực tiếp không có ?code) */
+    #enter { max-width: 460px; margin: 8vh auto; padding: 16px; }
+
+    /* Màn chiếu */
+    #stage { display: none; min-height: 100vh; padding: 2.2vw 2.6vw; }
+    body.live #stage { display: block; }
+    body.live #enter { display: none; }
+
+    .vhead {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 16px; margin-bottom: 1.6vw; flex-wrap: wrap; padding-right: 58px;
+    }
+    .vtitle { font-family: "Mansalva", cursive; font-size: clamp(30px, 4vw, 60px); color: var(--ink); }
+    .vbanner {
+      font-family: "Mansalva", cursive; font-size: clamp(22px, 3vw, 44px);
+      padding: 8px 24px; border-radius: 999px; white-space: nowrap;
+    }
+    .vbanner.wait { background: var(--blue-soft); color: var(--ink); }
+    .vbanner.signal { background: var(--green); color: #073b23; animation: bpulse 1s ease-in-out infinite; }
+    .vbanner.result { background: var(--gold); color: #6b4a06; }
+    @keyframes bpulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(clamp(200px, 20vw, 320px), 1fr));
+      gap: clamp(12px, 1.4vw, 24px);
+    }
+    .pcard {
+      background: #fffdf7; border: 3px solid var(--line); border-radius: 22px;
+      padding: clamp(14px, 1.4vw, 26px); position: relative;
+      box-shadow: 0 8px 20px rgba(90,121,168,.12);
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      min-height: clamp(120px, 12vw, 180px); text-align: center;
+      justify-content: center; transition: transform .15s;
+    }
+    .pcard .pav {
+      width: clamp(64px, 6.4vw, 116px); height: clamp(64px, 6.4vw, 116px);
+      font-size: clamp(36px, 3.8vw, 66px); margin-bottom: 4px;
+    }
+    .pcard .rank {
+      position: absolute; top: -14px; left: -10px;
+      font-size: clamp(30px, 3vw, 52px); line-height: 1;
+      filter: drop-shadow(0 2px 3px rgba(0,0,0,.15));
+    }
+    .pcard .pname {
+      font-weight: 700; font-size: clamp(30px, 3.4vw, 60px); color: var(--ink);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .pcard .ptime {
+      font-family: "Mansalva", cursive; font-size: clamp(30px, 3.6vw, 60px);
+      line-height: 1; color: var(--ink-soft);
+    }
+    .pcard .pstate { font-size: clamp(16px, 1.6vw, 26px); color: #b9b39c; font-weight: 600; }
+
+    /* Trạng thái */
+    .pcard.buzzed { border-color: var(--green); }
+    .pcard.buzzed .ptime { color: #2f8a5f; }
+    .pcard.win {
+      border-color: var(--gold);
+      background: linear-gradient(160deg, #fffdf7, var(--gold-soft));
+      box-shadow: 0 10px 28px rgba(244,183,63,.4);
+      transform: scale(1.03);
+    }
+    .pcard.win .pname, .pcard.win .ptime { color: #a9740b; }
+    .pcard.off { opacity: .5; border-style: dashed; }
+    .pcard.off .pstate { color: var(--red); }
+
+    .vempty { text-align: center; font-size: clamp(20px, 2.5vw, 36px); color: var(--ink-soft); margin-top: 12vh; }
+  </style>
+</head>
+<body>
+  <button id="fsBtn" class="fs-btn" title="Toàn màn hình" aria-label="Toàn màn hình">⛶</button>
+  <script>
+    (function () {
+      var b = document.getElementById("fsBtn");
+      b.onclick = function () {
+        if (document.fullscreenElement) { if (document.exitFullscreen) document.exitFullscreen(); }
+        else if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(function () {});
+      };
+      document.addEventListener("fullscreenchange", function () {
+        var on = !!document.fullscreenElement;
+        b.title = on ? "Thoát toàn màn hình" : "Toàn màn hình";
+        b.classList.toggle("on", on);
+      });
+    })();
+  </script>
+
+  <!-- Nhập mã (fallback) -->
+  <div class="card" id="enter">
+    <h1 class="underline">📺 Màn chiếu</h1>
+    <p class="sub">Nhập mã phòng để mở màn chiếu cho khán giả.</p>
+    <label>Mã phòng</label>
+    <input id="codeInput" placeholder="ABCD" maxlength="4" autocapitalize="characters"
+           style="text-transform:uppercase;letter-spacing:6px;font-weight:700;text-align:center;font-size:24px;" />
+    <button id="enterBtn">Mở màn chiếu 📺</button>
+    <div class="msg" id="enterMsg"></div>
+  </div>
+
+  <!-- Màn chiếu -->
+  <div id="stage">
+    <div class="vhead">
+      <div class="vtitle">🔔 Rung chuông vàng</div>
+      <div class="vbanner wait" id="banner">⏳ Chờ hiệu lệnh…</div>
+    </div>
+    <div class="grid" id="grid"></div>
+    <div class="vempty hidden" id="empty">Chưa có thí sinh nào tham gia…</div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    const $ = (id) => document.getElementById(id);
+
+    $("codeInput").addEventListener("input", (e) => { e.target.value = e.target.value.toUpperCase(); });
+    $("enterBtn").onclick = go;
+    $("codeInput").addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
+
+    const preCode = new URLSearchParams(location.search).get("code");
+    if (preCode) { $("codeInput").value = preCode.toUpperCase().slice(0, 4); go(); }
+
+    function go() {
+      const code = $("codeInput").value.trim().toUpperCase();
+      if (!code) { $("enterMsg").textContent = "Nhập mã phòng."; return; }
+      socket.emit("viewer:join", { code }, (res) => {
+        if (!res?.ok) { $("enterMsg").textContent = res?.error || "Không vào được phòng."; return; }
+        document.body.classList.add("live");
+        render(res.phase, res.players);
+      });
+    }
+
+    socket.on("room:update", ({ phase, players }) => {
+      if (document.body.classList.contains("live")) render(phase, players);
+    });
+    socket.on("room:closed", () => {
+      $("banner").className = "vbanner result";
+      $("banner").textContent = "🚪 Phòng đã đóng";
+      $("grid").innerHTML = "";
+    });
+
+    function render(phase, players) {
+      // Xếp hạng: người đã bấm & không bị khóa, theo thời gian tăng dần
+      const ranked = players.filter((p) => p.buzzed && !p.disabled).sort((a, b) => a.reaction - b.reaction);
+      const rankOf = new Map(ranked.map((p, i) => [p.id, i + 1]));
+
+      // Banner
+      const b = $("banner");
+      if (phase === "SIGNAL") { b.className = "vbanner signal"; b.textContent = "🟢 BẤM NHANH!"; }
+      else if (ranked.length) { b.className = "vbanner result"; b.textContent = "🏆 KẾT QUẢ"; }
+      else { b.className = "vbanner wait"; b.textContent = "⏳ Chờ hiệu lệnh…"; }
+
+      // Sắp xếp thẻ: đã bấm (theo hạng) -> đang chờ -> bị khóa
+      const order = [...players].sort((a, b) => {
+        const ra = rankOf.get(a.id) || (a.disabled ? 9999 : 999);
+        const rb = rankOf.get(b.id) || (b.disabled ? 9999 : 999);
+        return ra - rb;
+      });
+
+      $("empty").classList.toggle("hidden", players.length > 0);
+      $("grid").innerHTML = order.map((p) => {
+        const rank = rankOf.get(p.id);
+        const isWin = rank === 1;
+        let cls = "pcard";
+        let medal = "", body = "";
+        if (p.disabled) {
+          cls += " off";
+          body = '<div class="pstate">🔒 Đã khóa</div>';
+        } else if (p.buzzed) {
+          cls += isWin ? " win" : " buzzed";
+          medal = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : "";
+          body = `<div class="ptime">${p.reaction} ms</div>` +
+                 (rank > 3 ? `<div class="pstate">Hạng ${rank}</div>` : "");
+        } else {
+          body = `<div class="pstate">${phase === "SIGNAL" ? "…đang chờ bấm" : "sẵn sàng"}</div>`;
+        }
+        const name = (isWin ? "👑 " : "") + escapeHtml(p.name);
+        const av = p.avatar ? `<span class="avatar pav" style="background:${p.avatar.color}">${p.avatar.emoji}</span>` : "";
+        return `<div class="${cls}">${medal ? `<div class="rank">${medal}</div>` : ""}${av}<div class="pname">${name}</div>${body}</div>`;
+      }).join("");
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    }
+  </script>
+</body>
+</html>
