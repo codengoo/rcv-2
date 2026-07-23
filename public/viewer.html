@@ -38,13 +38,15 @@
       grid-template-columns: repeat(auto-fill, minmax(clamp(200px, 20vw, 320px), 1fr));
       gap: clamp(12px, 1.4vw, 24px);
     }
+    /* Thẻ người chơi: style giống nút bấm — nền màu đặc + bóng đáy 3D */
     .pcard {
-      background: #fffdf7; border: 3px solid var(--line); border-radius: 22px;
+      background: var(--blue-soft); border: 3px solid #bcd6f2; border-radius: 22px;
       padding: clamp(14px, 1.4vw, 26px); position: relative;
-      box-shadow: 0 8px 20px rgba(90,121,168,.12);
+      box-shadow: 0 7px 0 #b7d1ee;
       display: flex; flex-direction: column; align-items: center; gap: 6px;
       min-height: clamp(120px, 12vw, 180px); text-align: center;
-      justify-content: center; transition: transform .15s;
+      justify-content: center;
+      will-change: transform;   /* mượt cho hoạt ảnh FLIP */
     }
     .pcard .pav {
       width: clamp(64px, 6.4vw, 116px); height: clamp(64px, 6.4vw, 116px);
@@ -65,17 +67,21 @@
     }
     .pcard .pstate { font-size: clamp(16px, 1.6vw, 26px); color: #b9b39c; font-weight: 600; }
 
-    /* Trạng thái */
-    .pcard.buzzed { border-color: var(--green); }
-    .pcard.buzzed .ptime { color: #2f8a5f; }
+    /* Trạng thái — mỗi trạng thái một màu nút riêng */
+    .pcard.buzzed { background: var(--green); border-color: var(--green); box-shadow: 0 7px 0 #52b082; }
+    .pcard.buzzed .pname, .pcard.buzzed .ptime { color: #fff; }
+    .pcard.buzzed .pstate { color: rgba(255, 255, 255, .85); }
     .pcard.win {
       border-color: var(--gold);
-      background: linear-gradient(160deg, #fffdf7, var(--gold-soft));
-      box-shadow: 0 10px 28px rgba(244,183,63,.4);
+      background: var(--gold);          /* fill đặc phẳng giống nút gold */
+      box-shadow: 0 9px 0 #d99a1f;      /* cùng tông bóng với nút .mini */
       transform: scale(1.03);
     }
-    .pcard.win .pname, .pcard.win .ptime { color: #a9740b; }
-    .pcard.off { opacity: .5; border-style: dashed; }
+    .pcard.win .pname, .pcard.win .ptime { color: #6b4a06; }
+    .pcard.off {
+      opacity: .6; border-style: dashed;
+      background: #f4ede0; border-color: #e4dcc9; box-shadow: 0 5px 0 #e4dcc9;
+    }
     .pcard.off .pstate { color: var(--red); }
 
     .vempty { text-align: center; font-size: clamp(20px, 2.5vw, 36px); color: var(--ink-soft); margin-top: 12vh; }
@@ -148,7 +154,33 @@
       $("banner").className = "vbanner result";
       $("banner").textContent = "🚪 Phòng đã đóng";
       $("grid").innerHTML = "";
+      cardEls.clear(); // đồng bộ map node để không dựng lại thẻ cũ
     });
+
+    // Giữ node theo id để tái sử dụng -> cho phép hoạt ảnh FLIP khi đổi vị trí
+    const cardEls = new Map();
+
+    // Đổ nội dung + class cho 1 thẻ theo trạng thái người chơi
+    function updateCard(el, p, rank, phase) {
+      const isWin = rank === 1;
+      let cls = "pcard";
+      let medal = "", body = "";
+      if (p.disabled) {
+        cls += " off";
+        body = '<div class="pstate">🔒 Đã khóa</div>';
+      } else if (p.buzzed) {
+        cls += isWin ? " win" : " buzzed";
+        medal = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : "";
+        body = `<div class="ptime" title="${p.reaction} ms">${secs(p.reaction)}</div>` +
+               (rank > 3 ? `<div class="pstate">Hạng ${rank}</div>` : "");
+      } else {
+        body = `<div class="pstate">${phase === "SIGNAL" ? "…đang chờ bấm" : "sẵn sàng"}</div>`;
+      }
+      const name = (isWin ? "👑 " : "") + escapeHtml(p.name);
+      const av = p.avatar ? `<span class="avatar pav" style="background:${p.avatar.color}">${p.avatar.emoji}</span>` : "";
+      el.className = cls;
+      el.innerHTML = `${medal ? `<div class="rank">${medal}</div>` : ""}${av}<div class="pname">${name}</div>${body}`;
+    }
 
     function render(phase, players) {
       // Xếp hạng: người đã bấm & không bị khóa, theo thời gian tăng dần
@@ -169,31 +201,55 @@
       });
 
       $("empty").classList.toggle("hidden", players.length > 0);
-      $("grid").innerHTML = order.map((p) => {
-        const rank = rankOf.get(p.id);
-        const isWin = rank === 1;
-        let cls = "pcard";
-        let medal = "", body = "";
-        if (p.disabled) {
-          cls += " off";
-          body = '<div class="pstate">🔒 Đã khóa</div>';
-        } else if (p.buzzed) {
-          cls += isWin ? " win" : " buzzed";
-          medal = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : "";
-          body = `<div class="ptime">${p.reaction} ms</div>` +
-                 (rank > 3 ? `<div class="pstate">Hạng ${rank}</div>` : "");
-        } else {
-          body = `<div class="pstate">${phase === "SIGNAL" ? "…đang chờ bấm" : "sẵn sàng"}</div>`;
+      const grid = $("grid");
+
+      // FLIP · FIRST: ghi lại vị trí hiện tại của các thẻ đang có
+      const firstRects = new Map();
+      cardEls.forEach((el, id) => firstRects.set(id, el.getBoundingClientRect()));
+
+      // Cập nhật/tạo thẻ theo thứ tự mới
+      const seen = new Set();
+      const ordered = [];
+      for (const p of order) {
+        seen.add(p.id);
+        let el = cardEls.get(p.id);
+        const isNew = !el;
+        if (isNew) { el = document.createElement("div"); cardEls.set(p.id, el); }
+        updateCard(el, p, rankOf.get(p.id), phase);
+        ordered.push({ el, id: p.id, isNew });
+      }
+      // Bỏ thẻ của người đã rời phòng
+      cardEls.forEach((el, id) => { if (!seen.has(id)) { el.remove(); cardEls.delete(id); } });
+
+      // FLIP · LAST: gắn lại theo thứ tự mới (di chuyển node, KHÔNG tạo lại)
+      ordered.forEach((o) => grid.appendChild(o.el));
+
+      // FLIP · INVERT + PLAY
+      ordered.forEach(({ el, id, isNew }) => {
+        if (isNew) {
+          el.animate(
+            [{ opacity: 0, transform: "scale(.8)" }, { opacity: 1, transform: "scale(1)" }],
+            { duration: 300, easing: "cubic-bezier(.2,.7,.2,1)" }
+          );
+          return;
         }
-        const name = (isWin ? "👑 " : "") + escapeHtml(p.name);
-        const av = p.avatar ? `<span class="avatar pav" style="background:${p.avatar.color}">${p.avatar.emoji}</span>` : "";
-        return `<div class="${cls}">${medal ? `<div class="rank">${medal}</div>` : ""}${av}<div class="pname">${name}</div>${body}</div>`;
-      }).join("");
+        const f = firstRects.get(id);
+        const l = el.getBoundingClientRect();
+        const dx = f.left - l.left, dy = f.top - l.top;
+        if (dx || dy) {
+          el.animate(
+            [{ transform: `translate(${dx}px, ${dy}px)` }, { transform: "translate(0, 0)" }],
+            { duration: 480, easing: "cubic-bezier(.2,.7,.2,1)" }
+          );
+        }
+      });
     }
 
     function escapeHtml(s) {
       return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
     }
+    // Hiển thị theo giây (2 số lẻ); hover ra ms qua thuộc tính title.
+    function secs(ms) { return (ms / 1000).toFixed(2) + " s"; }
   </script>
 </body>
 </html>

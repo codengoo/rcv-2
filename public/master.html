@@ -7,12 +7,20 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Shantell+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
   <link rel="stylesheet" href="/style.css" />
   <style>
     .wrap { max-width: 900px; }
-    /* Khung card không vượt 90% chiều cao màn hình; nội dung dài -> cuộn trong danh sách người chơi */
-    .card { display: flex; flex-direction: column; }
-    .card > h1 { align-self: flex-start; }   /* giữ gạch chân đúng bề rộng chữ */
+    /* Khung card không vượt chiều cao màn hình; nội dung dài -> cuộn trong danh sách người chơi.
+       max-height bắt buộc phải có: nếu không card dài hơn viewport sẽ bị body (align-items:center)
+       căn giữa và cắt mất phần đầu (header/QR) — không cuộn tới được. */
+    .card {
+      display: flex; flex-direction: column;
+      max-height: calc(100dvh - 36px);   /* 36px = padding trên+dưới của body (18px*2) */
+    }
+    /* Header: tiêu đề + nút Thông tin phòng nằm cùng một hàng */
+    .card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .card-head > h1 { align-self: flex-start; }   /* giữ gạch chân đúng bề rộng chữ */
     #room:not(.hidden) { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
 
     /* Thanh điều khiển — chỉ hiện khi đang chơi (gamemode) */
@@ -24,8 +32,8 @@
     #room.gamemode #startBtnEntry { display: none; }
     button.red { background: var(--red); box-shadow: 0 5px 0 #cf5a52; }
     button.red:active { box-shadow: 0 1px 0 #cf5a52; }
-    .info-btn { display: none; }               /* chỉ hiện ở chế độ đang chơi */
-    #room.gamemode .info-btn { display: inline-block; }
+    .info-btn { display: none; }               /* chỉ hiện ở chế độ đang chơi (JS thêm .show) */
+    .info-btn.show { display: inline-flex; align-items: center; gap: 7px; }
     .info-close { display: none; }
 
     /* Bố cục 2 panel */
@@ -72,6 +80,11 @@
     .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
     .panel-head h2 { font-family: "Shantell Sans", sans-serif; font-size: 20px; font-weight: 700; color: var(--ink); }
     .players { margin-top: 0; }
+    /* Row người chơi: nền xanh nhạt + bóng đáy đặc 3D giống các nút bấm */
+    .players-panel .players li {
+      background: #dde9fb; border-color: #c2d7f2;
+      box-shadow: 0 3px 0 #c2d7f2;
+    }
     .players li.off { opacity: .55; }
     .players li .pinfo { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; }
     .players li.winner {
@@ -81,6 +94,10 @@
       font-weight: 700;
     }
     .tag.gold { background: var(--gold); color: #6b4a06; font-weight: 800; }
+    /* Tag trạng thái nổi rõ trên nền row xanh (đừng để chìm) */
+    .players-panel .players li .tag { box-shadow: 0 1px 2px rgba(36, 72, 126, .1); }
+    .players-panel .players li .tag.wait { background: #fff; color: var(--ink); border: 1px solid #d3e0f2; }
+    .players-panel .players li .tag.ok { background: var(--green); color: #fff; }
     .join-row {
       display: flex; align-items: center; gap: 8px; margin-top: 10px;
       background: #fffdf7; border: 2px solid var(--line); border-radius: 12px;
@@ -99,13 +116,15 @@
     button.copy-btn.ok { background: var(--green); box-shadow: 0 3px 0 #52b082; }
 
     .head-actions { display: inline-flex; align-items: center; gap: 8px; }
+    /* Nút icon (mở màn chiếu) — đồng bộ style với nút Copy: nền đặc + bóng nổi 3D */
     .icon-btn {
       display: inline-flex; align-items: center; justify-content: center;
       width: 40px; height: 40px; border-radius: 11px; flex: 0 0 auto;
-      background: var(--blue-soft); color: var(--ink); font-size: 18px;
-      text-decoration: none;
+      background: var(--blue); color: #fff; font-size: 18px;
+      text-decoration: none; box-shadow: 0 3px 0 #4d86c4;
     }
-    .icon-btn:hover { text-decoration: none; filter: brightness(.96); }
+    .icon-btn:hover { text-decoration: none; filter: brightness(1.03); }
+    .icon-btn:active { transform: translateY(3px); box-shadow: 0 0 0 #4d86c4; }
 
     button.mini {
       width: auto; margin: 0; padding: 9px 14px; font-size: 14px;
@@ -125,7 +144,7 @@
   </style>
 </head>
 <body>
-  <button id="fsBtn" class="fs-btn" title="Toàn màn hình" aria-label="Toàn màn hình">⛶</button>
+  <button id="fsBtn" class="fs-btn" title="Toàn màn hình" aria-label="Toàn màn hình"><i class="fa-solid fa-expand"></i></button>
   <script>
     (function () {
       var b = document.getElementById("fsBtn");
@@ -142,7 +161,10 @@
   </script>
   <div class="wrap">
     <div class="card">
-      <h1 class="underline">🔔 Rung chuông vàng</h1>
+      <div class="card-head">
+        <h1 class="underline"><i class="fa-solid fa-bell"></i> Rung chuông vàng</h1>
+        <button id="infoBtn" class="mini info-btn"><i class="fa-solid fa-house"></i> Thông tin phòng</button>
+      </div>
       <p class="sub">Bàn điều khiển · Tạo phòng, chờ người chơi rồi bấm bắt đầu để ra hiệu.</p>
 
       <div id="setup">
@@ -152,38 +174,37 @@
       <div id="room" class="hidden">
         <!-- Thanh điều khiển: luôn hiển thị -->
         <div class="controls">
-          <button id="infoBtn" class="mini info-btn">🏠 Thông tin phòng</button>
           <div id="phaseBox" class="msg"></div>
-          <button id="startBtn" class="green">Bắt đầu ▶</button>
-          <button id="stopBtn" class="red hidden">⏹ Dừng &amp; công bố kết quả</button>
-          <button id="resetBtn" class="ghost hidden">Chơi lại 🔄</button>
+          <button id="startBtn" class="green"><i class="fa-solid fa-play"></i> Bắt đầu</button>
+          <button id="stopBtn" class="red hidden"><i class="fa-solid fa-stop"></i> Dừng &amp; công bố kết quả</button>
+          <button id="resetBtn" class="ghost hidden"><i class="fa-solid fa-rotate-right"></i> Chơi lại</button>
         </div>
 
         <div class="room-body">
           <!-- PANEL thông tin phòng (inline ở lobby, modal khi đang chơi) -->
           <div id="infoPanel" class="panel info-panel">
             <div class="panel-head">
-              <h2>🏠 Thông tin phòng</h2>
+              <h2><i class="fa-solid fa-house"></i> Thông tin phòng</h2>
               <span class="head-actions">
-                <a id="viewerLink" href="#" target="_blank" class="icon-btn" title="Mở màn chiếu cho khán giả">📺</a>
-                <button id="infoCloseBtn" class="mini info-close">✕</button>
+                <a id="viewerLink" href="#" target="_blank" class="icon-btn" title="Mở màn chiếu cho khán giả"><i class="fa-solid fa-tv"></i></a>
+                <button id="infoCloseBtn" class="mini info-close"><i class="fa-solid fa-xmark"></i></button>
               </span>
             </div>
             <img id="qrImg" alt="QR tham gia phòng"
                  style="display:block;width:180px;height:180px;margin:4px auto 6px;border-radius:18px;border:3px solid #f0e8d4;background:#fffdf7;padding:6px;" />
-            <div class="hint">📱 Quét mã QR để vào phòng ngay</div>
+            <div class="hint"><i class="fa-solid fa-qrcode"></i> Quét mã QR để vào phòng ngay</div>
             <div class="join-row">
               <span class="join-link" id="joinUrl"></span>
-              <button id="copyBtn" class="copy-btn" title="Sao chép link phòng">Copy</button>
+              <button id="copyBtn" class="copy-btn" title="Sao chép link phòng"><i class="fa-regular fa-copy"></i> Copy</button>
             </div>
-            <button id="startBtnEntry" class="green">Bắt đầu ▶</button>
+            <button id="startBtnEntry" class="green"><i class="fa-solid fa-play"></i> Bắt đầu</button>
           </div>
 
           <!-- PANEL danh sách người chơi -->
           <div class="panel players-panel">
             <div class="panel-head">
               <h2>Người chơi (<span id="count">0</span>)</h2>
-              <button id="enableAllBtn" class="mini">🔓 Mở khóa tất cả</button>
+              <button id="enableAllBtn" class="mini"><i class="fa-solid fa-lock-open"></i> Mở khóa tất cả</button>
             </div>
             <ul class="players" id="playerList"></ul>
             <div class="empty" id="emptyHint">Chưa có ai tham gia…</div>
@@ -199,6 +220,7 @@
   <script>
     const socket = io();
     let phase = "LOBBY";
+    let lastPlayers = []; // danh sách người chơi mới nhất (để refresh controls khi vào gamemode)
     let winnerId = null; // người thắng vòng hiện tại (để tô màu trong danh sách)
     let joinUrl = "";
 
@@ -232,12 +254,16 @@
       setTimeout(() => { b.textContent = "Copy"; b.classList.remove("ok"); }, 1400);
     };
 
-    const doStart = () => {
+    // Nút "Bắt đầu" ở lobby: CHỈ chuyển sang layout đang chơi, KHÔNG ra hiệu.
+    // Việc ra hiệu (master:start) do nút "Bắt đầu" trong thanh điều khiển gamemode đảm nhận.
+    const enterGameMode = () => {
       $("room").classList.add("gamemode"); // chuyển sang layout tập trung
-      socket.emit("master:start");
+      $("infoBtn").classList.add("show");  // hiện nút Thông tin phòng trên hàng tiêu đề
+      updateControls(lastPlayers);         // refresh thanh điều khiển cho đúng chế độ gamemode
     };
-    $("startBtn").onclick = doStart;
-    $("startBtnEntry").onclick = doStart;
+    // Nút "Bắt đầu" trong gamemode: ra hiệu thật.
+    $("startBtn").onclick = () => socket.emit("master:start");
+    $("startBtnEntry").onclick = enterGameMode;
     $("stopBtn").onclick = () => socket.emit("master:stop");
     $("resetBtn").onclick = () => socket.emit("master:reset");
     $("enableAllBtn").onclick = () => socket.emit("master:enableAll");
@@ -266,42 +292,56 @@
       if (phase === "SIGNAL") {
         show(startBtn, false); show(startEntry, false);
         show(resetBtn, false); show(stopBtn, true);
-        box.textContent = "🟢 ĐÃ RA HIỆU! Chờ người chơi bấm — hoặc bấm Dừng để công bố ngay.";
+        box.innerHTML = '<i class="fa-solid fa-circle" style="color:var(--green)"></i> ĐÃ RA HIỆU! Chờ người chơi bấm — hoặc bấm Dừng để công bố ngay.';
       } else { // LOBBY
         show(stopBtn, false);
         if (winnerId || anyBuzzed) {
           show(startBtn, false); show(startEntry, false); show(resetBtn, true);
-          box.textContent = "🏆 Đã công bố kết quả. Bấm Chơi lại để bắt đầu vòng mới.";
+          box.innerHTML = '<i class="fa-solid fa-trophy" style="color:var(--gold)"></i> Đã công bố kết quả. Bấm Chơi lại để bắt đầu vòng mới.';
         } else {
           show(resetBtn, false);
           // Sẵn sàng: entry -> nút trong panel; gamemode -> nút ở thanh điều khiển
           show(startEntry, !gm); show(startBtn, gm);
           startBtn.disabled = startEntry.disabled = active === 0;
-          box.textContent = "⏳ Sẵn sàng. Bấm Bắt đầu để ra hiệu ngay lập tức.";
+          box.innerHTML = '<i class="fa-regular fa-hourglass-half"></i> Sẵn sàng. Bấm Bắt đầu để ra hiệu ngay lập tức.';
         }
       }
     }
 
-    socket.on("room:update", ({ phase: p, players }) => {
+    function renderRoom({ phase: p, players }) {
       if (p === "SIGNAL") winnerId = null; // vòng mới -> bỏ đánh dấu người thắng cũ
       phase = p;
+      lastPlayers = players;
       $("count").textContent = players.length;
       $("emptyHint").style.display = players.length ? "none" : "block";
-      $("playerList").innerHTML = players.map((pl) => {
+
+      // Ở trạng thái tổng sắp (đã có người bấm & không còn đang ra hiệu):
+      // sắp theo thời gian bấm chuông — nhanh nhất lên đầu, ai chưa bấm xuống cuối.
+      let list = players;
+      if (p !== "SIGNAL" && players.some((pl) => pl.buzzed)) {
+        list = [...players].sort((a, b) => {
+          if (a.buzzed !== b.buzzed) return a.buzzed ? -1 : 1;      // đã bấm lên trước
+          if (a.buzzed && b.buzzed) return a.reaction - b.reaction; // ms nhỏ hơn lên trước
+          return 0;                                                 // giữ nguyên thứ tự người chưa bấm
+        });
+      }
+
+      $("playerList").innerHTML = list.map((pl) => {
         const isWin = !pl.disabled && pl.id === winnerId;
         let tag;
-        if (pl.disabled) tag = '<span class="tag foul">đã khóa</span>';
-        else if (isWin) tag = `<span class="tag gold">🏆 ${pl.reaction} ms</span>`;
-        else if (pl.buzzed) tag = `<span class="tag ok">${pl.reaction} ms</span>`;
-        else tag = '<span class="tag wait">chờ</span>';
-        const btn = `<button class="row-btn ${pl.disabled ? "on" : ""}" data-id="${pl.id}">${pl.disabled ? "Mở khóa" : "Khóa"}</button>`;
+        if (pl.disabled) tag = '<span class="tag foul"><i class="fa-solid fa-lock"></i> đã khóa</span>';
+        else if (isWin) tag = `<span class="tag gold" title="${pl.reaction} ms"><i class="fa-solid fa-trophy"></i> ${secs(pl.reaction)}</span>`;
+        else if (pl.buzzed) tag = `<span class="tag ok" title="${pl.reaction} ms">${secs(pl.reaction)}</span>`;
+        else tag = '<span class="tag wait"><i class="fa-regular fa-clock"></i> chờ</span>';
+        const btn = `<button class="row-btn ${pl.disabled ? "on" : ""}" data-id="${pl.id}"><i class="fa-solid ${pl.disabled ? "fa-lock-open" : "fa-lock"}"></i> ${pl.disabled ? "Mở khóa" : "Khóa"}</button>`;
         const cls = (pl.disabled ? "off" : "") + (isWin ? " winner" : "");
-        const name = (isWin ? "👑 " : "") + escapeHtml(pl.name);
+        const name = (isWin ? '<i class="fa-solid fa-crown"></i> ' : "") + escapeHtml(pl.name);
         return `<li class="${cls}"><span class="pinfo">${avatarHtml(pl.avatar, 38)}<span class="pname">${name}</span>${tag}</span>${btn}</li>`;
       }).join("");
       updateControls(players);
-    });
+    }
 
+    socket.on("room:update", renderRoom);
     // winnerId để tô màu người thắng; nút bấm do room:update (updateControls) quản lý
     socket.on("game:results", ({ winner }) => { winnerId = winner ? winner.id : null; });
     socket.on("game:reset", () => { winnerId = null; });
@@ -313,6 +353,8 @@
     function escapeHtml(s) {
       return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
     }
+    // Hiển thị theo giây (2 số lẻ); hover ra ms qua thuộc tính title.
+    function secs(ms) { return (ms / 1000).toFixed(2) + " s"; }
   </script>
 </body>
 </html>

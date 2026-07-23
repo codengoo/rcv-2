@@ -56,6 +56,26 @@
 
     .msg { margin-top: 4px; }
     #resultBox { flex: 0 0 auto; }
+
+    /* --- Bảng xếp hạng kết quả: đồng bộ style nút (fill đặc + bóng đáy 3D) --- */
+    #resultBox .result-card { border-color: var(--gold); }
+    #resultBox .players { margin-top: 12px; }
+    #resultBox .players li {
+      border: none; color: #fff; font-weight: 700;
+      background: var(--green); box-shadow: 0 4px 0 #52b082;
+    }
+    #resultBox .players li.gold {          /* hạng nhất: vàng như nút gold */
+      color: #6b4a06; background: var(--gold); box-shadow: 0 4px 0 #d99a1f;
+    }
+
+    /* --- Stage: đồng bộ style nút (fill đặc phẳng + bóng đáy 3D, bỏ gradient/nét đứt) --- */
+    #gameCard .stage { border-style: solid; box-shadow: 0 10px 0 #e0e4ee; }
+    #gameCard .stage.wait   { background: var(--blue-soft); border-color: #bcd6f2; box-shadow: 0 10px 0 #bcd6f2; }
+    #gameCard .stage.signal { background: var(--green); border-color: #4fb587; color: #0d5236; box-shadow: 0 12px 0 #4fb587; }
+    #gameCard .stage.done   { background: var(--gold-soft); border-color: var(--gold); color: #a9740b; box-shadow: 0 10px 0 #eaca7f; }
+    #gameCard .stage.foul   { background: var(--red-soft); border-color: var(--red); color: #c8544c; box-shadow: 0 10px 0 #f2b3ad; }
+    /* Ô signal là nút bấm khổng lồ -> lún xuống khi chạm */
+    #gameCard .stage.signal:active { transform: translateY(6px); box-shadow: 0 6px 0 #4fb587; }
   </style>
 </head>
 <body>
@@ -157,7 +177,7 @@
       vibrate(35);
       socket.emit("client:buzz", { reaction });
       stage.className = "stage done";
-      $("stageText").innerHTML = `<div class="done-icon">⚡</div><div class="done-ms">${reaction} ms</div>`;
+      $("stageText").innerHTML = `<div class="done-icon">⚡</div><div class="done-ms" title="${reaction} ms">${secs(reaction)}</div>`;
       $("gameMsg").textContent = "Đã bấm! Chờ kết quả…";
     }
 
@@ -204,12 +224,12 @@
       if (iWon) vibrate([0, 40, 60, 40]);
       let head;
       if (iWon) head = '<div style="text-align:center;font-size:24px;">🏆 <b class="rank1">Bạn thắng!</b></div>';
-      else if (winner) head = `<div style="text-align:center;font-size:18px;">🏆 Người thắng: <b>${escapeHtml(winner.name)}</b> (${winner.reaction} ms)</div>`;
+      else if (winner) head = `<div style="text-align:center;font-size:18px;">🏆 Người thắng: <b>${escapeHtml(winner.name)}</b> (<span title="${winner.reaction} ms">${secs(winner.reaction)}</span>)</div>`;
       else head = '<div style="text-align:center;">Vòng này không ai hợp lệ 😅</div>';
-      let list = ranking.length ? '<ul class="players" style="margin-top:10px;">' + ranking.map((r) =>
-        `<li><span>${r.rank === 1 ? "🥇" : r.rank === 2 ? "🥈" : r.rank === 3 ? "🥉" : r.rank + "."} ${escapeHtml(r.name)}</span><span>${r.reaction} ms</span></li>`
+      let list = ranking.length ? '<ul class="players">' + ranking.map((r) =>
+        `<li class="${r.rank === 1 ? "gold" : ""}"><span>${r.rank === 1 ? "🥇" : r.rank === 2 ? "🥈" : r.rank === 3 ? "🥉" : r.rank + "."} ${escapeHtml(r.name)}</span><span title="${r.reaction} ms">${secs(r.reaction)}</span></li>`
       ).join("") + "</ul>" : "";
-      $("resultBox").innerHTML = '<div class="card" style="margin-top:12px;background:linear-gradient(160deg,#fffdf7,#ffe9b0);border-color:#f4b73f;">' + head + list + "</div>";
+      $("resultBox").innerHTML = '<div class="card result-card" style="margin-top:12px;">' + head + list + "</div>";
       if (!hasActed) setStage("wait", "", "");
     });
 
@@ -232,6 +252,8 @@
     function escapeHtml(s) {
       return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
     }
+    // Hiển thị theo giây (2 số lẻ); hover ra ms qua thuộc tính title.
+    function secs(ms) { return (ms / 1000).toFixed(2) + " s"; }
   </script>
 </body>
 </html>
