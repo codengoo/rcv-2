@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>🔔 Master - Rung chuông vàng</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Mansalva&family=Shantell+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1 class="underline">🔔 Rung chuông vàng</h1>
+      <p class="sub">Bàn điều khiển · Tạo phòng, chờ người chơi rồi bấm bắt đầu để ra hiệu.</p>
+
+      <div id="setup">
+        <button id="createBtn">Tạo phòng mới</button>
+      </div>
+
+      <div id="room" class="hidden">
+        <div class="hint">Mã phòng — chia sẻ cho người chơi</div>
+        <div class="code-badge" id="codeBadge">----</div>
+        <img id="qrImg" alt="QR tham gia phòng"
+             style="display:block;width:190px;height:190px;margin:12px auto 6px;border-radius:18px;border:3px solid #f0e8d4;background:#fffdf7;padding:6px;" />
+        <div class="hint">📱 Quét mã QR để vào phòng ngay</div>
+        <div class="hint" id="joinUrl" style="margin-top:6px;word-break:break-all;"></div>
+
+        <div id="phaseBox" class="msg"></div>
+
+        <h1 style="font-size:16px;margin-top:16px;">Người chơi (<span id="count">0</span>)</h1>
+        <ul class="players" id="playerList"></ul>
+
+        <div id="resultBox"></div>
+
+        <button id="startBtn" class="green">Bắt đầu</button>
+        <button id="resetBtn" class="ghost hidden">Chơi lại</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    let phase = "LOBBY";
+
+    const $ = (id) => document.getElementById(id);
+
+    $("createBtn").onclick = () => {
+      socket.emit("master:create", null, (res) => {
+        if (res?.ok) {
+          $("setup").classList.add("hidden");
+          $("room").classList.remove("hidden");
+          $("codeBadge").textContent = res.code;
+          if (res.qr) $("qrImg").src = res.qr; else $("qrImg").style.display = "none";
+          $("joinUrl").textContent = res.joinUrl;
+        }
+      });
+    };
+
+    $("startBtn").onclick = () => socket.emit("master:start");
+    $("resetBtn").onclick = () => socket.emit("master:reset");
+
+    function renderPhase() {
+      const box = $("phaseBox");
+      const startBtn = $("startBtn");
+      const resetBtn = $("resetBtn");
+      if (phase === "LOBBY") {
+        box.textContent = "⏳ Sẵn sàng. Bấm Bắt đầu để ra hiệu ngay lập tức.";
+        startBtn.classList.remove("hidden");
+        startBtn.disabled = false;
+      } else if (phase === "SIGNAL") {
+        box.textContent = "🟢 ĐÃ RA HIỆU! Chờ người chơi bấm...";
+        startBtn.disabled = true;
+      }
+    }
+
+    socket.on("room:update", ({ phase: p, players }) => {
+      phase = p;
+      $("count").textContent = players.length;
+      $("playerList").innerHTML = players.map((pl) => {
+        let tag = '<span class="tag wait">chờ</span>';
+        if (pl.falseStart) tag = '<span class="tag foul">phạm quy</span>';
+        else if (pl.buzzed) tag = `<span class="tag ok">${pl.reaction} ms</span>`;
+        return `<li><span>${escapeHtml(pl.name)}</span>${tag}</li>`;
+      }).join("");
+      $("startBtn").disabled = phase !== "LOBBY" || players.length === 0;
+      renderPhase();
+    });
+
+    socket.on("game:results", ({ winner, ranking, fouls }) => {
+      $("startBtn").classList.add("hidden");
+      $("resetBtn").classList.remove("hidden");
+      let html = '<div class="card" style="margin-top:16px;background:linear-gradient(160deg,#fffdf7,#ffe9b0);border-color:#f4b73f;">';
+      if (winner) {
+        html += `<div style="text-align:center;font-size:20px;">🏆 <b class="rank1">${escapeHtml(winner.name)}</b></div>`;
+        html += `<div class="reaction">${winner.reaction} ms</div>`;
+      } else {
+        html += '<div style="text-align:center;">Không có ai bấm hợp lệ 😅</div>';
+      }
+      if (ranking.length) {
+        html += '<ul class="players" style="margin-top:12px;">' + ranking.map((r) =>
+          `<li><span>${r.rank === 1 ? "🥇" : r.rank === 2 ? "🥈" : r.rank === 3 ? "🥉" : r.rank + "."} ${escapeHtml(r.name)}</span><span>${r.reaction} ms</span></li>`
+        ).join("") + "</ul>";
+      }
+      if (fouls.length) {
+        html += '<div class="status">Phạm quy: ' + fouls.map((f) => escapeHtml(f.name)).join(", ") + "</div>";
+      }
+      html += "</div>";
+      $("resultBox").innerHTML = html;
+    });
+
+    socket.on("game:reset", () => {
+      $("resultBox").innerHTML = "";
+      $("startBtn").classList.remove("hidden");
+      $("resetBtn").classList.add("hidden");
+    });
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    }
+  </script>
+</body>
+</html>

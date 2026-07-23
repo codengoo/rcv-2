@@ -1,0 +1,16 @@
+{
+  "name": "buzzer-game",
+  "version": "1.0.0",
+  "description": "Mini app bấm chuông - master ra hiệu, client bấm nhanh nhất thắng",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "qrcode": "^1.5.4",
+    "socket.io": "^4.7.5"
+  }
+}

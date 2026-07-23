@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>🔔 Rung chuông vàng</title>
+  <meta name="theme-color" content="#fbf7ec" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Mansalva&family=Shantell+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/style.css" />
+  <style>
+    /* ===== Client tối ưu cho MOBILE ===== */
+    html, body { height: 100%; }
+    body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
+
+    /* --- Màn join --- */
+    #joinCard { padding: 28px 22px; }
+    #joinCard input { padding: 15px 16px; font-size: 17px; }
+    #joinCard #codeInput { font-size: 26px; text-align: center; padding: 16px; }
+    #joinCard button { padding: 17px; font-size: 20px; }
+
+    /* --- Màn chơi: full màn hình --- */
+    body.playing { padding: 0; align-items: stretch; }
+    body.playing .wrap { max-width: 100%; }
+    #gameCard {
+      height: 100dvh;
+      border: none; border-radius: 0; box-shadow: none;
+      background: transparent;
+      display: flex; flex-direction: column;
+      padding: max(14px, env(safe-area-inset-top)) 14px max(14px, env(safe-area-inset-bottom));
+      gap: 10px;
+    }
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 15px; font-weight: 600; color: var(--ink);
+      padding: 4px 6px;
+    }
+    .topbar .room { font-family: "Mansalva", cursive; font-size: 20px; }
+    .topbar .me {
+      background: var(--blue-soft); color: var(--ink);
+      padding: 5px 12px; border-radius: 999px; font-size: 13px; font-weight: 700;
+      max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+
+    /* Đèn/nút bấm chiếm phần lớn màn hình */
+    #gameCard .stage {
+      flex: 1 1 auto;
+      height: auto; min-height: 46vh;
+      border-radius: 28px;
+      font-size: clamp(22px, 7vw, 34px);
+      -webkit-user-select: none; user-select: none;
+      touch-action: manipulation;
+      box-shadow: 0 10px 26px rgba(90,121,168,.16);
+    }
+    #gameCard .stage .big { font-size: clamp(64px, 24vw, 150px); line-height: 1; }
+    #gameCard .stage.signal { box-shadow: 0 0 0 5px rgba(111,199,154,.25), 0 12px 30px rgba(79,181,135,.35); }
+    #gameCard .stage.signal:active { transform: scale(.97); }
+    .bell { font-size: clamp(56px, 20vw, 120px); line-height: 1; }
+    .tap-hint { font-size: clamp(15px, 4.5vw, 20px); font-weight: 600; opacity: .85; margin-top: 4px; }
+
+    .msg { margin-top: 4px; }
+    #resultBox { flex: 0 0 auto; }
+    #gameCard { overflow-y: auto; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <!-- Màn join -->
+    <div class="card" id="joinCard">
+      <h1 class="underline">🔔 Rung chuông vàng</h1>
+      <p class="sub">Nhập mã phòng và tên để tham gia. Ai bấm nhanh nhất sau tín hiệu sẽ thắng! 🏆</p>
+      <label>Mã phòng</label>
+      <input id="codeInput" placeholder="ABCD" maxlength="4" autocapitalize="characters" autocomplete="off"
+             inputmode="latin" style="text-transform:uppercase;letter-spacing:6px;font-weight:700;" />
+      <label>Tên của bạn</label>
+      <input id="nameInput" placeholder="Tên hiển thị" maxlength="20" autocomplete="off" />
+      <button id="joinBtn">Tham gia 🚀</button>
+      <div class="msg" id="joinMsg"></div>
+      <div class="status">Là người điều khiển? → <a href="/master.html">Mở bàn Master</a></div>
+    </div>
+
+    <!-- Màn chơi -->
+    <div class="card hidden" id="gameCard">
+      <div class="topbar">
+        <span class="room">🔔 Phòng <b id="roomCode"></b></span>
+        <span class="me" id="meName"></span>
+      </div>
+
+      <div class="stage wait" id="stage">
+        <div id="stageText"></div>
+      </div>
+
+      <div class="msg" id="gameMsg"></div>
+      <div id="resultBox"></div>
+      <div class="status" id="playersStatus"></div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    const $ = (id) => document.getElementById(id);
+
+    let phase = "LOBBY";
+    let signalPerf = null;   // mốc thời gian LOCAL khi nhận tín hiệu
+    let hasActed = false;    // đã bấm trong vòng này
+    let myName = "";
+
+    const vibrate = (p) => { try { navigator.vibrate && navigator.vibrate(p); } catch {} };
+
+    // ---- Join ----
+    $("codeInput").addEventListener("input", (e) => { e.target.value = e.target.value.toUpperCase(); });
+    $("joinBtn").onclick = doJoin;
+    $("codeInput").addEventListener("keydown", (e) => { if (e.key === "Enter") $("nameInput").focus(); });
+    $("nameInput").addEventListener("keydown", (e) => { if (e.key === "Enter") doJoin(); });
+
+    // Quét QR -> điền sẵn mã phòng, con trỏ nhảy vào ô tên
+    const preCode = new URLSearchParams(location.search).get("code");
+    if (preCode) {
+      $("codeInput").value = preCode.toUpperCase().slice(0, 4);
+      setTimeout(() => $("nameInput").focus(), 100);
+    }
+
+    function doJoin() {
+      const code = $("codeInput").value.trim().toUpperCase();
+      const name = $("nameInput").value.trim();
+      if (!code || !name) { $("joinMsg").textContent = "Nhập đủ mã phòng và tên."; return; }
+      socket.emit("client:join", { code, name }, (res) => {
+        if (!res?.ok) { $("joinMsg").textContent = res?.error || "Không vào được phòng."; return; }
+        myName = name;
+        document.body.classList.add("playing");
+        $("joinCard").classList.add("hidden");
+        $("gameCard").classList.remove("hidden");
+        $("roomCode").textContent = res.code;
+        $("meName").textContent = "👤 " + name;
+        showWait();
+      });
+    }
+
+    // ---- Buzz ----
+    const stage = $("stage");
+    stage.addEventListener("pointerdown", buzz);
+    document.addEventListener("keydown", (e) => {
+      if (e.code === "Space" && !$("gameCard").classList.contains("hidden")) { e.preventDefault(); buzz(); }
+    });
+
+    function buzz() {
+      if (hasActed || phase !== "SIGNAL") return;
+      const reaction = Math.round(performance.now() - signalPerf);
+      hasActed = true;
+      vibrate(35);
+      socket.emit("client:buzz", { reaction });
+      setStage("done", `⚡ ${reaction} ms`, "Đã bấm! Chờ kết quả…");
+    }
+
+    function setStage(cls, big, msg) {
+      stage.className = "stage " + cls;
+      $("stageText").innerHTML = big ? `<span class="big">${big}</span>` : "";
+      $("gameMsg").textContent = msg || "";
+    }
+    function showWait() {
+      stage.className = "stage wait";
+      $("stageText").innerHTML = `<div class="bell">🔔</div><div class="tap-hint">Chờ hiệu lệnh…</div>`;
+      $("gameMsg").textContent = "";
+    }
+
+    // ---- Sự kiện từ server ----
+    socket.on("game:signal", () => {
+      signalPerf = performance.now();      // đo LOCAL từ lúc màn hình hiện tín hiệu
+      phase = "SIGNAL"; hasActed = false;
+      $("resultBox").innerHTML = "";
+      vibrate([0, 60]);
+      setStage("signal", "BẤM!", "");
+      stage.querySelector("#stageText").insertAdjacentHTML("beforeend", '<div class="tap-hint">Chạm nhanh vào đây!</div>');
+    });
+
+    socket.on("game:results", ({ winner, ranking }) => {
+      phase = "LOBBY";
+      const iWon = winner && winner.name === myName;
+      if (iWon) vibrate([0, 40, 60, 40]);
+      let head;
+      if (iWon) head = '<div style="text-align:center;font-size:24px;">🏆 <b class="rank1">Bạn thắng!</b></div>';
+      else if (winner) head = `<div style="text-align:center;font-size:18px;">🏆 Người thắng: <b>${escapeHtml(winner.name)}</b> (${winner.reaction} ms)</div>`;
+      else head = '<div style="text-align:center;">Vòng này không ai hợp lệ 😅</div>';
+      let list = ranking.length ? '<ul class="players" style="margin-top:10px;">' + ranking.map((r) =>
+        `<li><span>${r.rank === 1 ? "🥇" : r.rank === 2 ? "🥈" : r.rank === 3 ? "🥉" : r.rank + "."} ${escapeHtml(r.name)}</span><span>${r.reaction} ms</span></li>`
+      ).join("") + "</ul>" : "";
+      $("resultBox").innerHTML = '<div class="card" style="margin-top:12px;background:linear-gradient(160deg,#fffdf7,#ffe9b0);border-color:#f4b73f;">' + head + list + "</div>";
+      if (!hasActed) setStage("wait", "", "");
+    });
+
+    socket.on("game:reset", () => {
+      phase = "LOBBY"; hasActed = false; signalPerf = null;
+      $("resultBox").innerHTML = "";
+      showWait();
+    });
+
+    socket.on("room:update", ({ phase: p, players }) => {
+      const done = players.filter((x) => x.buzzed).length;
+      $("playersStatus").textContent = `${players.length} người chơi · ${done} đã bấm`;
+    });
+
+    socket.on("room:closed", () => {
+      setStage("foul", "", "Phòng đã đóng (Master rời đi).");
+      $("stageText").innerHTML = '<div class="bell">🚪</div>';
+    });
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    }
+  </script>
+</body>
+</html>
